@@ -3,6 +3,7 @@ import sys, os, os.path
 import nibabel as nb
 import glob
 import helpers.calc_metric
+import numpy as np
 
 input_dir = sys.argv[1]
 output_dir = sys.argv[2]
@@ -24,6 +25,14 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 
 
 	# Iterate over all volumes in the reference list
+
+	dice=[]
+	voe=[]
+	rvd=[]
+	assd=[]
+	mssd=[]
+
+
     for reference_vol in reference_vol_list:
 
 		print 'Starting with volume %s' % reference_vol
@@ -49,10 +58,25 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 			current_result = helpers.calc_metric.get_scores(loaded_submission_volume_data==2,loaded_reference_volume_data==2,reference_voxelspacing)
 
 			print 'Found following results for submission file %s: %s' % (submission_volume_path,current_result)
-			output_file.write("ISBIDiceComplete: %f\n" % current_result['dice'])
-			output_file.write("ISBIVOEComplete: %f\n" % current_result['voe'])
-			output_file.write("ISBIRVDComplete: %f\n" % current_result['rvd'])
-			output_file.write("ISBIASSDComplete: %f\n" % current_result['assd'])
-			output_file.write("ISBIMSSDComplete: %f\n" % current_result['msd'])
 
-    output_file.close()
+			dice.append(current_result['dice'])
+			voe.append(current_result['voe'])
+			rvd.append(current_result['rvd'])
+			assd.append(current_result['assd'])
+			mssd.append(current_result['msd'])
+
+	output_file.write("ISBIDiceComplete: %f\n" % np.mean(dice))
+	output_file.write("ISBIVOEComplete: %f\n" % np.mean(voe))
+	output_file.write("ISBIRVDComplete: %f\n" % np.mean(rvd))
+	output_file.write("ISBIASSDComplete: %f\n" % np.mean(assd))
+	output_file.write("ISBIMSSDComplete: %f\n" % np.mean(mssd))
+	output_file.write("ISBIRankComplete: %f\n" % (np.mean(dice)+2-np.mean(voe)+np.mean(rvd))./3)
+
+	output_file.write("LBDiceComplete: %f\n" % np.mean(dice))
+	output_file.write("LBVOEComplete: %f\n" % np.mean(voe))
+	output_file.write("LBRVDComplete: %f\n" % np.mean(rvd))
+	output_file.write("LBASSDComplete: %f\n" % np.mean(assd))
+	output_file.write("LBMSSDComplete: %f\n" % np.mean(mssd))
+	output_file.write("LBRankComplete: %f\n" % (np.mean(dice) + 2 - np.mean(voe) + np.mean(rvd)). / 3)
+
+	output_file.close()
