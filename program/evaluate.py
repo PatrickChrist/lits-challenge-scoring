@@ -8,20 +8,20 @@ import numpy as np
 input_dir = sys.argv[1]
 output_dir = sys.argv[2]
 
-submit_dir = os.path.join(input_dir, 'res') 
+submit_dir = os.path.join(input_dir, 'res')
 truth_dir = os.path.join(input_dir, 'ref')
 
 if not os.path.isdir(submit_dir):
 	print "%s doesn't exist" % submit_dir
 
 if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
 
-    output_filename = os.path.join(output_dir, 'scores.txt')              
-    output_file = open(output_filename, 'wb')
+	output_filename = os.path.join(output_dir, 'scores.txt')
+	output_file = open(output_filename, 'wb')
 
-    reference_vol_list = glob.glob(truth_dir + '/*.nii')
+	reference_vol_list = glob.glob(truth_dir + '/*.nii')
 
 
 	# Iterate over all volumes in the reference list
@@ -33,7 +33,7 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 	mssd=[]
 
 
-    for reference_vol in reference_vol_list:
+	for reference_vol in reference_vol_list:
 
 		print 'Starting with volume %s' % reference_vol
 
@@ -70,13 +70,13 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 	output_file.write("ISBIRVDComplete: %f\n" % np.mean(rvd))
 	output_file.write("ISBIASSDComplete: %f\n" % np.mean(assd))
 	output_file.write("ISBIMSSDComplete: %f\n" % np.mean(mssd))
-	output_file.write("ISBIRankComplete: %f\n" % (np.mean(dice)+2-np.mean(voe)+np.mean(rvd))./3)
+	output_file.write("ISBIRankComplete: %f\n" % (np.mean(dice)+2-np.mean(voe)+np.mean(rvd)./3))
 
 	output_file.write("LBDiceComplete: %f\n" % np.mean(dice))
 	output_file.write("LBVOEComplete: %f\n" % np.mean(voe))
 	output_file.write("LBRVDComplete: %f\n" % np.mean(rvd))
 	output_file.write("LBASSDComplete: %f\n" % np.mean(assd))
 	output_file.write("LBMSSDComplete: %f\n" % np.mean(mssd))
-	output_file.write("LBRankComplete: %f\n" % (np.mean(dice) + 2 - np.mean(voe) + np.mean(rvd)). / 3)
+	output_file.write("LBRankComplete: %f\n" % (np.mean(dice) + 2 - np.mean(voe) + np.mean(rvd). / 3))
 
 	output_file.close()
