@@ -21,7 +21,9 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
     output_file = open(output_filename, 'wb')
 
     reference_vol_list = glob.glob(truth_dir + '/*.nii')
-    print reference_vol_list
+
+
+	# Iterate over all volumes in the reference list
     for reference_vol in reference_vol_list:
 
 		print 'Starting with volume %s' % reference_vol
