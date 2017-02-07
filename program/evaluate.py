@@ -70,13 +70,11 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 	output_file.write("ISBIRVDComplete: %f\n" % np.mean(rvd))
 	output_file.write("ISBIASSDComplete: %f\n" % np.mean(assd))
 	output_file.write("ISBIMSSDComplete: %f\n" % np.mean(mssd))
-	output_file.write("ISBIRankComplete: %f\n" % (np.mean(dice)+2-np.mean(voe)+np.mean(rvd)/3.))
 
 	output_file.write("LBDiceComplete: %f\n" % np.mean(dice))
 	output_file.write("LBVOEComplete: %f\n" % np.mean(voe))
 	output_file.write("LBRVDComplete: %f\n" % np.mean(rvd))
 	output_file.write("LBASSDComplete: %f\n" % np.mean(assd))
 	output_file.write("LBMSSDComplete: %f\n" % np.mean(mssd))
-	output_file.write("LBRankComplete: %f\n" % (np.mean(dice) + 2 - np.mean(voe) + np.mean(rvd) / 3.))
 
 	output_file.close()
