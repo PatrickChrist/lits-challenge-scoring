@@ -31,7 +31,6 @@ def get_scores(pred,label,vxlspacing):
     else:
         evalsurf = Surface(pred,label,physical_voxel_spacing = vxlspacing,mask_offset = [0.,0.,0.], reference_offset = [0.,0.,0.])
         volscores['assd'] = evalsurf.get_average_symmetric_surface_distance()
-
-        volscores['msd'] = metric.hd(label,pred,voxelspacing=vxlspacing)
+        volscores['msd'] = evalsurf.get_maximum_symmetric_surface_distance()
 
     return volscores

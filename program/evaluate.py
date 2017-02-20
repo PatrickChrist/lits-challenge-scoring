@@ -49,9 +49,10 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 			# Get the current voxelspacing
 			reference_voxelspacing= loaded_reference_volume.header.get_zooms()[:3]
 
-			# Get Numpy data
-			loaded_reference_volume_data = loaded_reference_volume.get_data()
-			loaded_submission_volume_data = loaded_submission_volume.get_data()
+			# Get Numpy data and compress to int9
+			loaded_reference_volume_data = loaded_reference_volume.get_data().astype(np.int8)
+			loaded_submission_volume_data =loaded_submission_volume.get_data().astype(np.int8)
+
 
 			# Calc metric and store them in dict
 			print 'Start calculating metrics for submission file %s' % submission_volume_path
