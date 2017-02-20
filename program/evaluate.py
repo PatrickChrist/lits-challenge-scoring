@@ -57,8 +57,32 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 			# Calc metric and store them in dict
 			print 'Start calculating metrics for submission file %s' % submission_volume_path
 
-			print 'Found %s Lesion Pixels in file %s' % (np.count_nonzero(loaded_submission_volume_data==2),submission_volume_path)
-			current_result = helpers.calc_metric.get_scores(loaded_submission_volume_data==2,loaded_reference_volume_data==2,reference_voxelspacing)
+			num_lesion_in_reference = np.count_nonzero(loaded_reference_volume_data == 2)
+			print 'Found %s Lesion Pixels in file %s' % (num_lesion_in_reference, submission_volume_path)
+
+			# Check whether ground truth contains lesions
+			if num_lesion_in_reference==0:
+				print 'No lesions in ground truth'
+				num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data==2)
+				if num_lesion_in_submission ==0:
+					print 'No lesions in prediction, well done'
+
+					current_result['dice'] = 1.
+					current_result['voe'] = 0.
+					current_result['rvd'] = 0.
+					current_result['assd'] = 0.
+					current_result['msd'] = 0.
+
+				elif num_lesion_in_submission!=0:
+					loaded_reference_volume_data = np.zeros_like(loaded_reference_volume_data)
+					# Set one pixel to be a lesion pixel to avoid divding through zero
+					loaded_reference_volume_data[0,0,0] = 2
+					current_result = helpers.calc_metric.get_scores(loaded_submission_volume_data == 2,
+																	loaded_reference_volume_data == 2,
+																	reference_voxelspacing)
+
+			else:
+				current_result = helpers.calc_metric.get_scores(loaded_submission_volume_data==2,loaded_reference_volume_data==2,reference_voxelspacing)
 
 			print 'Found following results for submission file %s: %s' % (submission_volume_path,current_result)
 
