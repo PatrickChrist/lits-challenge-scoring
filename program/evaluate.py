@@ -122,7 +122,7 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 
 
 			# Calculate tumorburden
-			if num_liver_in_submission!=0 && num_lesion_in_reference!=0:
+			if (num_liver_in_submission!=0) and (num_lesion_in_reference!=0):
 				tumorburden_diff=helpers.calc_metric.get_tumorburden_metric(loaded_submission_volume_data,loaded_reference_volume_data)
 			else:
 				num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data == 2)
