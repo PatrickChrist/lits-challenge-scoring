@@ -19,7 +19,7 @@ def get_tumorburden_metric(pred,label):
     return tumorburden_diff
 
 def calc_tumorburden(vol):
-    num_liv_pix=np.count_nonzero(vol==1)
+    num_liv_pix=np.count_nonzero(vol>=1)
     num_les_pix=np.count_nonzero(vol==2)
 
     tumorburden = np.divide(num_les_pix,num_liv_pix)

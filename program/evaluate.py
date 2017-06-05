@@ -114,11 +114,11 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 			# Calculate liver metrics
 			if num_liver_in_submission==0:
 				loaded_submission_volume_data[0,0,0] = 1
-				current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data == 1,
-																	loaded_reference_volume_data == 1,
+				current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data >= 1,
+																	loaded_reference_volume_data >= 1,
 																	reference_voxelspacing)
 			else:
-				current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data==1,loaded_reference_volume_data==1,reference_voxelspacing)
+				current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data>=1,loaded_reference_volume_data>=1,reference_voxelspacing)
 
 
 			# Calculate tumorburden
