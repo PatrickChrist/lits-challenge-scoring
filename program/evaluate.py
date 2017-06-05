@@ -131,7 +131,7 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 				else:
 					tumorburden_diff=0.0
 
-			print 'Found following results for submission file %s: %s' % (submission_volume_path,current_result)
+			print 'Found following results for submission file %s: %s\n %s\n %s' % (submission_volume_path,current_result_les,current_result_liv,tumorburden_diff)
 
 			# Saving the current results
 			## Results for lesion
