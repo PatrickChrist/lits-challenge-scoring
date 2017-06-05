@@ -125,9 +125,11 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 			if num_liver_in_submission!=0 and num_lesion_in_reference!=0:
 				tumorburden_diff=helpers.calc_metric.get_tumorburden_metric(loaded_submission_volume_data,loaded_reference_volume_data)
 			else:
+				num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data == 2)
 				if num_lesion_in_submission!=0:
 					tumorburden_diff=1.0
-				tumorburden_diff=0.0
+				else:
+					tumorburden_diff=0.0
 
 			print 'Found following results for submission file %s: %s' % (submission_volume_path,current_result)
 
