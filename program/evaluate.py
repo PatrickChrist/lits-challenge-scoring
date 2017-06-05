@@ -122,7 +122,7 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 
 
 			# Calculate tumorburden
-			if num_liver_in_submission!=0 and num_lesion_in_reference!=0:
+			if num_liver_in_submission!=0 && num_lesion_in_reference!=0:
 				tumorburden_diff=helpers.calc_metric.get_tumorburden_metric(loaded_submission_volume_data,loaded_reference_volume_data)
 			else:
 				num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data == 2)
@@ -185,6 +185,6 @@ if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
 	output_file.write("Recall_Liver: %.2f\n" % np.mean(recall_liv))
 
 	## Output for tumorburden
-	output_file.write("RMSE_Tumorburden: %.2f\n" % np.mean(tumor_burden_rmse))
-	output_file.write("MAXERROR_Tumorburden: %.2f\n" % np.max(tumor_burden_max_error))
+	output_file.write("RMSE_Tumorburden: %.3f\n" % np.mean(tumor_burden_rmse))
+	output_file.write("MAXERROR_Tumorburden: %.3f\n" % np.max(tumor_burden_max_error))
 	output_file.close()
