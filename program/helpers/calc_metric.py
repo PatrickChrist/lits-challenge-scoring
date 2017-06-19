@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-def get_tumorburden_metric(pred,label):
+def get_tumorburden_metric(pred, label):
     '''Calculates the tumorburden and evalutes the tumor burden metrics RMSE and max error
     :param pred: numpy.array
     :param label: numpy.array
@@ -25,7 +25,7 @@ def calc_tumorburden(vol):
     tumorburden = np.divide(num_les_pix,num_liv_pix)
     return tumorburden
 
-def get_scores(pred,label,vxlspacing):
+def get_scores(pred, label, vxlspacing):
     '''
     Calculates metrics scores from numpy arrays and returns an dict.
     :param pred: numpy.array
@@ -54,7 +54,10 @@ def get_scores(pred,label,vxlspacing):
         volscores['assd'] = 0
         volscores['msd'] = 0
     else:
-        evalsurf = Surface(pred,label,physical_voxel_spacing = vxlspacing,mask_offset = [0.,0.,0.], reference_offset = [0.,0.,0.])
+        evalsurf = Surface(pred, label,
+                           physical_voxel_spacing=vxlspacing,
+                           mask_offset=[0.,0.,0.],
+                           reference_offset=[0.,0.,0.])
         volscores['assd'] = evalsurf.get_average_symmetric_surface_distance()
         volscores['msd'] = evalsurf.get_maximum_symmetric_surface_distance()
 
