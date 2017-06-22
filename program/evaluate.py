@@ -1,195 +1,184 @@
 #!/usr/bin/env python
-import sys, os, os.path
+from __future__ import print_function
+import sys
+import os
 import nibabel as nb
-import glob
-import helpers.calc_metric
 import numpy as np
+from scipy.ndimage.measurements import label as label_connected_components
+import glob
+from medpy import metric
 
-input_dir = sys.argv[1]
-output_dir = sys.argv[2]
+import helpers.calc_metric
+from helpers.calc_metric import (detect_lesions,
+                                 compute_segmentation_scores,
+                                 compute_tumor_burden)
 
-submit_dir = os.path.join(input_dir, 'res')
-truth_dir = os.path.join(input_dir, 'ref')
 
+
+# Check input directories.
+submit_dir = os.path.join(sys.argv[1], 'res')
+truth_dir = os.path.join(sys.argv[1], 'ref')
 if not os.path.isdir(submit_dir):
-    print "%s doesn't exist" % submit_dir
+    print("{} doesn't exist".format(submit_dir))
+    sys.exit()
+if not os.path.isdir(truth_dir):
+    sys.exit()
 
-if os.path.isdir(submit_dir) and os.path.isdir(truth_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+# Create output directory.
+output_dir = sys.argv[2]
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
-    output_filename = os.path.join(output_dir, 'scores.txt')
-    output_file = open(output_filename, 'wb')
+# Initialize results dictionaries
+lesion_detection_stats = {'TP': 0, 'FP': 0, 'FN': 0}
+lesion_segmentation_scores = {}
+liver_segmentation_scores = {}
+dice_per_case = {'lesion': [], 'liver': []}
+dice_global_stats = {'lesion': {'I': 0, 'S': 0},
+                     'liver':  {'I': 0, 'S': 0}} # 2*I/S
+tumor_burden_list = []
 
-    reference_vol_list = glob.glob(truth_dir + '/*.nii')
+# Iterate over all volumes in the reference list.
+reference_volume_list = glob.glob(truth_dir+'/*.nii')
+for reference_volume in reference_volume_list:
+    print("Starting with volume {}".format(reference_volume))
+    reference_volume_path = reference_volume
+    submission_volume_path = os.path.join(submit_dir,
+                                          os.path.basename(reference_volume))
+    if os.path.exists(submission_volume_path):
+        print("Found corresponding submission file {} for reference file {}"
+              "".format(reference_volume_path, submission_volume_path))
+
+        # Load reference and submission volumes with Nibabel.
+        reference_volume = nb.load(reference_volume_path)
+        submission_volume = nb.load(submission_volume_path)
+
+        # Get the current voxel spacing.
+        voxel_spacing = reference_volume.header.get_zooms()[:3]
+
+        # Get Numpy data and compress to int8.
+        reference_volume_data = (reference_volume.get_data()).astype(np.int8)
+        submission_volume_data = (submission_volume.get_data()).astype(np.int8)
+        
+        # Ensure that the shapes of the masks match.
+        if submission_volume_data.shape!=reference_volume_data.shape:
+            raise AttributeError("Shapes to not match! Prediction mask {}, "
+                                 "ground truth mask {}"
+                                 "".format(submission_volume_data.shape,
+                                           reference_volume_data.shape))
+        
+        # Create lesion and liver masks with labeled connected components.
+        pred_mask_lesion =label_connected_components(submission_volume_data==2)
+        true_mask_lesion =label_connected_components(reference_volume_data==2)
+        pred_mask_liver = submission_volume_data==1
+        true_mask_liver = reference_volume_data==1
+        
+        # Begin computing metrics.
+        print("Start calculating metrics for submission file {}"
+              "".format(submission_volume_path))
+        
+        # Identify detected lesions.
+        detected_mask_lesion = detect_lesions(prediction_mask=pred_mask_lesion,
+                                              reference_mask=true_mask_lesion,
+                                              min_overlap=0.5)
+        
+        # Count true/false positive and false negative detections.
+        TP = len(np.unique(detected_mask_lesion))
+        FP = len(np.unique(pred_mask_lesion[detected_mask_lesion==0]))
+        FN = len(np.unique(true_mask_lesion[detected_mask_lesion==0]))
+        lesion_detection_stats['TP'].append(TP)
+        lesion_detection_stats['FP'].append(FP)
+        lesion_detection_stats['FN'].append(FN)
+        
+        # Compute segmentation scores for DETECTED lesions.
+        lesion_scores = compute_segmentation_scores( \
+                                          prediction_mask=detected_mask_lesion,
+                                          reference_mask=true_mask_lesion,
+                                          voxel_spacing=voxel_spacing)
+        for metric in lesion_scores:
+            if metric not in lesion_segmentation_scores:
+                lesion_segmentation_scores[metric] = []
+            lesion_segmentation_scores[metric].extend(lesion_scores[metric])
+        
+        # Compute liver segmentation scores. 
+        liver_scores = compute_segmentation_scores( \
+                                          prediction_mask=detected_mask_liver,
+                                          reference_mask=true_mask_liver,
+                                          voxel_spacing=voxel_spacing)
+        for metric in liver_scores:
+            if metric not in lesion_segmentation_scores:
+                lesion_segmentation_scores[metric] = []
+            lesion_segmentation_scores[metric].extend(liver_scores[metric])
+            
+        # Compute per-case (per patient volume) dice.
+        dice_per_case['lesion'].append(metric.dc(pred_mask_lesion,
+                                                 true_mask_lesion))
+        dice_per_case['liver'].append(metric.dc(pred_mask_liver,
+                                                true_mask_liver))
+        
+        # Accumulate stats for global (dataset-wide) dice score.
+        dice_global['lesion']['I'] += np.logical_and(pred_mask_lesion,
+                                                     true_mask_lesion).sum()
+        dice_global['lesion']['S'] += pred_mask_lesion.sum() + \
+                                      true_mask_lesion.sum()
+        dice_global['liver']['I'] += np.logical_and(pred_mask_liver,
+                                                    true_mask_liver).sum()
+        dice_global['liver']['S'] += pred_mask_liver.sum() + \
+                                     true_mask_liver.sum()
+            
+        ##TODO Compute tumor burden.
+        #tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
+                                            #reference_mask=true_mask_lesion)
+        #tumor_burden_list.append(tumor_burden)
+        
+        
+# Compute lesion detection metrics.
+TP = lesion_detection_stats['TP']
+FP = lesion_detection_stats['FP']
+FN = lesion_detection_stats['FN']
+lesion_detection_metrics = {'precision': float(TP)/(TP+FP),
+                            'recall': float(TP)/(TP+FN)}
+
+# Compute lesion segmentation metrics.
+lesion_segmentation_metrics = {}
+for m in lesion_segmentation_scores:
+    lesion_segmentation_metrics[m] = np.mean(lesion_segmentation_scores)
+lesion_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['lesion'])
+dice_global = 2.*dice_global['lesion']['I']/dice_global['lesion']['S']
+lesion_segmentation_metrics['dice_global'] = dice_global
+    
+# Compute liver segmentation metrics.
+liver_segmentation_metrics = {}
+for m in liver_segmentation_scores:
+    liver_segmentation_metrics[m] = np.mean(liver_segmentation_scores)
+liver_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['liver'])
+dice_global = 2.*dice_global['liver']['I']/dice_global['liver']['S']
+liver_segmentation_metrics['dice_global'] = dice_global
+
+##TODO Compute tumor burden.
+#tumor_burden = np.mean(tumor_burden_list)
+    
+    
+# Print results to stdout.
+print("Computed LESION DETECTION metrics:")
+    for metric, value in lesion_detection_metrics:
+        print("{}: %.2f".format(metric, value))
+print("Computed LESION SEGMENTATION metrics (for detected lesions):")
+    for metric, value in lesion_segmentation_metrics:
+        print("{}: %.2f".format(metric, value))
+print("Computed LIVER SEGMENTATION metrics:")
+    for metric, value in liver_segmentation_metrics:
+        print("{}: %.2f".format(metric, value))
+#TODO print("Computed TUMOR BURDEN: {}".format(tumor_burden))
 
 
-    # Iterate over all volumes in the reference list
-
-    dice_liv=[]
-    voe_liv=[]
-    rvd_liv=[]
-    assd_liv=[]
-    mssd_liv=[]
-    precision_liv=[]
-    recall_liv =[]
-
-
-    dice_les = []
-    voe_les = []
-    rvd_les = []
-    assd_les = []
-    mssd_les = []
-
-    precision_les = []
-    recall_les = []
-    obj_tpr_les =[]
-    obj_fpr_les = []
-
-
-    tumor_burden_rmse = []
-    tumor_burden_max_error = []
-
-    for reference_vol in reference_vol_list:
-
-        print 'Starting with volume %s' % reference_vol
-
-        reference_volume_path = reference_vol
-        submission_volume_path = os.path.join(submit_dir, os.path.basename(reference_vol))
-        if os.path.exists(submission_volume_path):
-            print 'Found corresponding submission file %s for reference file %s' % (reference_volume_path, submission_volume_path)
-
-            # Load Ref and submission with Nibabel
-            loaded_reference_volume = nb.load(reference_volume_path)
-            loaded_submission_volume = nb.load(submission_volume_path)
-
-            # Get the current voxelspacing
-            reference_voxelspacing = loaded_reference_volume.header.get_zooms()[:3]
-
-            # Get Numpy data and compress to int8
-            loaded_reference_volume_data = (loaded_reference_volume.get_data()).astype(np.int8)
-            loaded_submission_volume_data = (loaded_submission_volume.get_data()).astype(np.int8)
-
-
-            # Calc metric and store them in dict
-            print 'Start calculating metrics for submission file %s' % submission_volume_path
-
-            num_lesion_in_reference = np.count_nonzero(loaded_reference_volume_data == 2)
-            print 'Found %s Lesion Pixels in file %s' % (num_lesion_in_reference, submission_volume_path)
-
-            # Check whether ground truth contains lesions
-            if num_lesion_in_reference==0:
-                print 'No lesions in ground truth'
-                num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data==2)
-                if num_lesion_in_submission ==0:
-                    print 'No lesions in prediction, well done'
-
-                    current_result_les['dice'] = 1.
-                    current_result_les['voe'] = 0.
-                    current_result_les['rvd'] = 0.
-                    current_result_les['assd'] = 0.
-                    current_result_les['msd'] = 0.
-
-                    current_result_les['precision'] = 0.
-                    current_result_les['recall'] = 0.
-                    current_result_les['obj_tpr'] = 0.
-                    current_result_les['obj_fpr'] = 0.
-
-
-                elif num_lesion_in_submission!=0:
-                    loaded_reference_volume_data = np.zeros_like(loaded_reference_volume_data)
-                    # Set one pixel to be a lesion pixel to avoid divding through zero
-                    loaded_reference_volume_data[0,0,0] = 2
-                    current_result_les = helpers.calc_metric.get_scores(loaded_submission_volume_data == 2,
-                                                                        loaded_reference_volume_data == 2,
-                                                                        reference_voxelspacing)
-
-            else:
-                current_result_les = helpers.calc_metric.get_scores(loaded_submission_volume_data==2,
-                                                                    loaded_reference_volume_data==2,
-                                                                    reference_voxelspacing)
-
-            # Check whether liver exists in Reference
-
-            num_liver_in_submission = np.count_nonzero(loaded_submission_volume_data == 1)
-
-            # Calculate liver metrics
-            if num_liver_in_submission==0:
-                loaded_submission_volume_data[0,0,0] = 1
-                current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data >= 1,
-                                                                    loaded_reference_volume_data >= 1,
-                                                                    reference_voxelspacing)
-            else:
-                current_result_liv = helpers.calc_metric.get_scores(loaded_submission_volume_data>=1,
-                                                                    loaded_reference_volume_data>=1,
-                                                                    reference_voxelspacing)
-
-
-            # Calculate tumorburden
-            if num_liver_in_submission!=0 and num_lesion_in_reference!=0:
-                tumorburden_diff=helpers.calc_metric.get_tumorburden_metric(loaded_submission_volume_data,
-                                                                            loaded_reference_volume_data)
-            else:
-                num_lesion_in_submission = np.count_nonzero(loaded_submission_volume_data == 2)
-                if num_lesion_in_submission!=0:
-                    tumorburden_diff=1.0
-                else:
-                    tumorburden_diff=0.0
-
-            print 'Found following results for submission file %s: %s\n %s\n %s' % (submission_volume_path,current_result_les,current_result_liv,tumorburden_diff)
-
-            # Saving the current results
-            ## Results for lesion
-
-            dice_les.append(current_result_les['dice'])
-            voe_les.append(current_result_les['voe'])
-            rvd_les.append(current_result_les['rvd'])
-            assd_les.append(current_result_les['assd'])
-            mssd_les.append(current_result_les['msd'])
-
-            precision_les.append(current_result_les['precision'])
-            recall_les.append(current_result_les['recall'])
-            obj_tpr_les.append(current_result_les['obj_tpr'])
-            obj_fpr_les.append(current_result_les['obj_fpr'])
-
-            ## Results for liver
-            dice_liv.append(current_result_liv['dice'])
-            voe_liv.append(current_result_liv['voe'])
-            rvd_liv.append(current_result_liv['rvd'])
-            assd_liv.append(current_result_liv['assd'])
-            mssd_liv.append(current_result_liv['msd'])
-
-            precision_liv.append(current_result_liv['precision'])
-            recall_liv.append(current_result_liv['recall'])
-
-            ## Results
-            tumor_burden_rmse.append(np.abs(tumorburden_diff))
-            tumor_burden_max_error.append(tumorburden_diff)
-
-    # Writing Output
-    ## Output for lesion
-    output_file.write("Dice_Lesion: %.2f\n" % np.mean(dice_les))
-    output_file.write("VOE_Lesion: %.2f\n" % np.mean(voe_les))
-    output_file.write("RVD_Lesion: %.2f\n" % np.mean(rvd_les))
-    output_file.write("ASSD_Lesion: %.2f\n" % np.mean(assd_les))
-    output_file.write("MSSD_Lesion: %.2f\n" % np.mean(mssd_les))
-
-    output_file.write("Precision_Lesion: %.2f\n" % np.mean(precision_les))
-    output_file.write("Recall_Lesion: %.2f\n" % np.mean(recall_les))
-    output_file.write("OBJ_TPR_Lesion: %.2f\n" % np.mean(obj_tpr_les))
-    output_file.write("OBJ_FPR_Lesion: %.2f\n" % np.mean(obj_fpr_les))
-
-    ## Output for liver
-    output_file.write("Dice_Liver: %.2f\n" % np.mean(dice_liv))
-    output_file.write("VOE_Liver: %.2f\n" % np.mean(voe_liv))
-    output_file.write("RVD_Liver: %.2f\n" % np.mean(rvd_liv))
-    output_file.write("ASSD_Liver: %.2f\n" % np.mean(assd_liv))
-    output_file.write("MSSD_Liver: %.2f\n" % np.mean(mssd_liv))
-
-    output_file.write("Precision_Liver: %.2f\n" % np.mean(precision_liv))
-    output_file.write("Recall_Liver: %.2f\n" % np.mean(recall_liv))
-
-    ## Output for tumorburden
-    output_file.write("RMSE_Tumorburden: %.2f\n" % np.mean(tumor_burden_rmse))
-    output_file.write("MAXERROR_Tumorburden: %.2f\n" % np.max(tumor_burden_max_error))
-    output_file.close()
+# Write metrics to file.
+output_filename = os.path.join(output_dir, 'scores.txt')
+output_file = open(output_filename, 'wb')
+for metric, value in lesion_detection_metrics:
+    output_file.write("lesion_{}: %.2f\n".format(metric, value))
+for metric, value in lesion_segmentation_metrics:
+    output_file.write("lesion_{}: %.2f\n".format(metric, value))
+for metric, value in liver_segmentation_metrics:
+    output_file.write("liver_{}: %.2f\n".format(metric, value))
+output_file.close()
