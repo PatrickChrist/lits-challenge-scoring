@@ -86,9 +86,9 @@ for reference_volume in reference_volume_list:
         TP = len(np.unique(detected_mask_lesion))
         FP = len(np.unique(pred_mask_lesion[detected_mask_lesion==0]))
         FN = len(np.unique(true_mask_lesion[detected_mask_lesion==0]))
-        lesion_detection_stats['TP'].append(TP)
-        lesion_detection_stats['FP'].append(FP)
-        lesion_detection_stats['FN'].append(FN)
+        lesion_detection_stats['TP']+=TP
+        lesion_detection_stats['FP']+=FP
+        lesion_detection_stats['FN']+=FN
         
         # Compute segmentation scores for DETECTED lesions.
         lesion_scores = compute_segmentation_scores( \
@@ -127,9 +127,9 @@ for reference_volume in reference_volume_list:
                                      true_mask_liver.sum()
             
         ##TODO Compute tumor burden.
-        #tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
-                                            #reference_mask=true_mask_lesion)
-        #tumor_burden_list.append(tumor_burden)
+        tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion, \
+                                            reference_mask=true_mask_lesion)
+        tumor_burden_list.append(tumor_burden)
         
         
 # Compute lesion detection metrics.
@@ -156,9 +156,10 @@ dice_global = 2.*dice_global['liver']['I']/dice_global['liver']['S']
 liver_segmentation_metrics['dice_global'] = dice_global
 
 ##TODO Compute tumor burden.
-#tumor_burden = np.mean(tumor_burden_list)
-    
-    
+tumor_burden_rmse = np.mean(np.sqrt(tumor_burden_list**2))
+tumor_burden_max_error = np.max(tumor_burden_list)
+
+
 # Print results to stdout.
 print("Computed LESION DETECTION metrics:")
 for metric, value in lesion_detection_metrics:
@@ -169,7 +170,7 @@ for metric, value in lesion_segmentation_metrics:
 print("Computed LIVER SEGMENTATION metrics:")
 for metric, value in liver_segmentation_metrics:
     print("{}: %.2f".format(metric, value))
-#TODO print("Computed TUMOR BURDEN: {}".format(tumor_burden))
+print("Computed TUMOR BURDEN: {}".format(tumor_burden_rmse))
 
 
 # Write metrics to file.
@@ -181,4 +182,9 @@ for metric, value in lesion_segmentation_metrics:
     output_file.write("lesion_{}: %.2f\n".format(metric, value))
 for metric, value in liver_segmentation_metrics:
     output_file.write("liver_{}: %.2f\n".format(metric, value))
+
+#Tumorburden
+output_file.write("RMSE_Tumorburden: %.2f\n".format(tumor_burden_rmse))
+output_file.write("MAXERROR_Tumorburden: %.2f\n".format(tumor_burden_max_error))
+
 output_file.close()
