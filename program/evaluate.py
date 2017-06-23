@@ -68,8 +68,8 @@ for reference_volume in reference_volume_list:
                                            reference_volume_data.shape))
         
         # Create lesion and liver masks with labeled connected components.
-        pred_mask_lesion =label_connected_components(submission_volume_data==2)
-        true_mask_lesion =label_connected_components(reference_volume_data==2)
+        pred_mask_lesion =label_connected_components(submission_volume_data==2)[0]
+        true_mask_lesion =label_connected_components(reference_volume_data==2)[0]
         pred_mask_liver = submission_volume_data==1
         true_mask_liver = reference_volume_data==1
         
@@ -161,14 +161,14 @@ liver_segmentation_metrics['dice_global'] = dice_global
     
 # Print results to stdout.
 print("Computed LESION DETECTION metrics:")
-    for metric, value in lesion_detection_metrics:
-        print("{}: %.2f".format(metric, value))
+for metric, value in lesion_detection_metrics:
+  print("{}: %.2f".format(metric, value))
 print("Computed LESION SEGMENTATION metrics (for detected lesions):")
-    for metric, value in lesion_segmentation_metrics:
-        print("{}: %.2f".format(metric, value))
+for metric, value in lesion_segmentation_metrics:
+  print("{}: %.2f".format(metric, value))
 print("Computed LIVER SEGMENTATION metrics:")
-    for metric, value in liver_segmentation_metrics:
-        print("{}: %.2f".format(metric, value))
+for metric, value in liver_segmentation_metrics:
+    print("{}: %.2f".format(metric, value))
 #TODO print("Computed TUMOR BURDEN: {}".format(tumor_burden))
 
 
