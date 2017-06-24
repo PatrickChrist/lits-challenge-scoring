@@ -1,6 +1,8 @@
 from medpy import metric
-from surface import Surface
 import numpy as np
+from scipy import ndimage
+
+from surface import Surface
 
 
 def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
@@ -90,8 +92,9 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
               'msd': []}
     
     for obj_id in np.unique(prediction_mask):
-        p = prediction_mask==obj_id
-        r = reference_mask==obj_id
+        bounding_box = ndimage.find_objects(reference_mask==obj_id)[0]
+        p = (prediction_mask==obj_id)[bounding_box]
+        r = (reference_mask==obj_id)[bounding_box]
         if np.count_nonzero(p) and np.count_nonzero(r):
             dice = metric.dc(p,r)
             jaccard = dice/(2.-dice)
