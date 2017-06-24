@@ -70,8 +70,8 @@ for reference_volume in reference_volume_list:
         # Create lesion and liver masks with labeled connected components.
         pred_mask_lesion =label_connected_components(submission_volume_data==2)[0]
         true_mask_lesion =label_connected_components(reference_volume_data==2)[0]
-        pred_mask_liver = submission_volume_data==1
-        true_mask_liver = reference_volume_data==1
+        pred_mask_liver = submission_volume_data>=1
+        true_mask_liver = reference_volume_data>=1
         
         # Begin computing metrics.
         print("Start calculating metrics for submission file {}"
@@ -102,7 +102,7 @@ for reference_volume in reference_volume_list:
         
         # Compute liver segmentation scores. 
         liver_scores = compute_segmentation_scores( \
-                                          prediction_mask=detected_mask_liver,
+                                          prediction_mask=pred_mask_liver,
                                           reference_mask=true_mask_liver,
                                           voxel_spacing=voxel_spacing)
         for metric in liver_scores:
