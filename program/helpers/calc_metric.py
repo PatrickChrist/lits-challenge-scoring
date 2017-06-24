@@ -96,7 +96,10 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
               'msd': []}
     
     for obj_id in np.unique(prediction_mask):
-        bounding_box = ndimage.find_objects(reference_mask==obj_id)[0]
+        # Limit processing to the bounding box containing both the prediction
+        # and reference objects.
+        target_mask = (reference_mask==obj_id)+(prediction_mask==obj_id)
+        bounding_box = ndimage.find_objects(target_mask)[0]
         p = (prediction_mask==obj_id)[bounding_box]
         r = (reference_mask==obj_id)[bounding_box]
         if np.count_nonzero(p) and np.count_nonzero(r):
