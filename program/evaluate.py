@@ -6,7 +6,6 @@ import nibabel as nb
 import numpy as np
 from scipy.ndimage.measurements import label as label_connected_components
 import glob
-from medpy import metric
 
 import helpers.calc_metric
 from helpers.calc_metric import (detect_lesions,
@@ -114,10 +113,10 @@ for reference_volume in reference_volume_list:
             lesion_segmentation_scores[metric].extend(liver_scores[metric])
             
         # Compute per-case (per patient volume) dice.
-        dice_per_case['lesion'].append(metric.dc(pred_mask_lesion,
-                                                 true_mask_lesion))
-        dice_per_case['liver'].append(metric.dc(pred_mask_liver,
-                                                true_mask_liver))
+        dice_per_case['lesion'].append(calc_metric.dice(pred_mask_lesion,
+                                                        true_mask_lesion))
+        dice_per_case['liver'].append(calc_metric.dice(pred_mask_liver,
+                                                       true_mask_liver))
         
         # Accumulate stats for global (dataset-wide) dice score.
         dice_global['lesion']['I'] += np.logical_and(pred_mask_lesion,

@@ -5,6 +5,10 @@ from scipy import ndimage
 from surface import Surface
 
 
+def dice(input1, input2):
+    return metric.dc(input1, input2)
+
+
 def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     """
     Produces a mask containing predicted lesions that overlap by at least
