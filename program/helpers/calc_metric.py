@@ -92,9 +92,11 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
     for obj_id in np.unique(prediction_mask):
         p = prediction_mask==obj_id
         r = reference_mask==obj_id
-        if p.count_nonzero() and r.count_nonzero:
+        if np.count_nonzero(p) and np.count_nonzero(r):
             scores['dice'].append(metric.dc(p,r))
+            scores['dice']=np.asarray(scores['dice'])
             scores['jaccard'].append(scores['dice']/(2.-scores['dice']))
+            scores['jaccard']=np.asarray(scores['jaccard'])
             scores['voe'].append(1.-scores['jaccard'])
             scores['rvd'].append(metric.ravd(r,p))
             evalsurf = Surface(p, r,
