@@ -68,8 +68,11 @@ for reference_volume in reference_volume_list:
                                            reference_volume_data.shape))
         
         # Create lesion and liver masks with labeled connected components.
-        pred_mask_lesion =label_connected_components(submission_volume_data==2)[0]
-        true_mask_lesion =label_connected_components(reference_volume_data==2)[0]
+        # (Assuming there is always exactly one liver - one connected comp.)
+        pred_mask_lesion = \
+            label_connected_components(submission_volume_data==2)[0]
+        true_mask_lesion = \
+            label_connected_components(reference_volume_data==2)[0]
         pred_mask_liver = submission_volume_data>=1
         true_mask_liver = reference_volume_data>=1
         
@@ -127,7 +130,7 @@ for reference_volume in reference_volume_list:
                                      true_mask_liver.sum()
             
         ##TODO Compute tumor burden.
-        tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion, \
+        tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
                                             reference_mask=true_mask_lesion)
         tumor_burden_list.append(tumor_burden)
         
@@ -157,20 +160,21 @@ liver_segmentation_metrics['dice_global'] = dice_global
 
 ##TODO Compute tumor burden.
 tumor_burden_rmse = np.mean(np.sqrt(tumor_burden_list**2))
-tumor_burden_max_error = np.max(tumor_burden_list)
+tumor_burden_max = np.max(tumor_burden_list)
 
 
 # Print results to stdout.
 print("Computed LESION DETECTION metrics:")
 for metric, value in lesion_detection_metrics:
-  print("{}: %.2f".format(metric, value))
+    print("{}: %.2f".format(metric, value))
 print("Computed LESION SEGMENTATION metrics (for detected lesions):")
 for metric, value in lesion_segmentation_metrics:
-  print("{}: %.2f".format(metric, value))
+    print("{}: %.2f".format(metric, value))
 print("Computed LIVER SEGMENTATION metrics:")
 for metric, value in liver_segmentation_metrics:
     print("{}: %.2f".format(metric, value))
-print("Computed TUMOR BURDEN: {}".format(tumor_burden_rmse))
+print("Computed TUMOR BURDEN: \n"
+      "rmse: %.2f\nmax: %.2f".format(tumor_burden_rmse, tumor_burden_max))
 
 
 # Write metrics to file.
@@ -185,6 +189,6 @@ for metric, value in liver_segmentation_metrics:
 
 #Tumorburden
 output_file.write("RMSE_Tumorburden: %.2f\n".format(tumor_burden_rmse))
-output_file.write("MAXERROR_Tumorburden: %.2f\n".format(tumor_burden_max_error))
+output_file.write("MAXERROR_Tumorburden: %.2f\n".format(tumor_burden_max))
 
 output_file.close()
