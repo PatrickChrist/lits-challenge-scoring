@@ -93,11 +93,11 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
         p = prediction_mask==obj_id
         r = reference_mask==obj_id
         if np.count_nonzero(p) and np.count_nonzero(r):
-            scores['dice']=np.append(scores['dice'],metric.dc(p,r))
-            scores['dice']=np.asarray(scores['dice'])
-            scores['jaccard']=np.append(scores['jaccard'],scores['dice']/(2.-scores['dice']))
-            scores['jaccard']=np.asarray(scores['jaccard'])
-            scores['voe']= np.append(scores['voe'],(1.-scores['jaccard']))
+            dice = metric.dc(p,r)
+            jaccard = dice/(2.-dice)
+            scores['dice']=np.append(dice)
+            scores['jaccard']=np.append(jaccard)
+            scores['voe']= np.append(1.-jaccard)
             scores['rvd'].append(metric.ravd(r,p))
             evalsurf = Surface(p, r,
                                physical_voxel_spacing=voxel_spacing,
