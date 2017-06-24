@@ -108,9 +108,9 @@ for reference_volume in reference_volume_list:
                                           reference_mask=true_mask_liver,
                                           voxel_spacing=voxel_spacing)
         for metric in liver_scores:
-            if metric not in lesion_segmentation_scores:
-                lesion_segmentation_scores[metric] = []
-            lesion_segmentation_scores[metric].extend(liver_scores[metric])
+            if metric not in liver_segmentation_scores:
+                liver_segmentation_scores[metric] = []
+            liver_segmentation_scores[metric].extend(liver_scores[metric])
             
         # Compute per-case (per patient volume) dice.
         dice_per_case['lesion'].append(calc_metric.dice(pred_mask_lesion,
