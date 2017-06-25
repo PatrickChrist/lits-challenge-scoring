@@ -33,8 +33,8 @@ lesion_detection_stats = {'TP': 0, 'FP': 0, 'FN': 0}
 lesion_segmentation_scores = {}
 liver_segmentation_scores = {}
 dice_per_case = {'lesion': [], 'liver': []}
-dice_global_stats = {'lesion': {'I': 0, 'S': 0},
-                     'liver':  {'I': 0, 'S': 0}} # 2*I/S
+dice_global_x = {'lesion': {'I': 0, 'S': 0},
+                 'liver':  {'I': 0, 'S': 0}} # 2*I/S
 tumor_burden_list = []
 
 # Iterate over all volumes in the reference list.
@@ -119,14 +119,14 @@ for reference_volume in reference_volume_list:
                                                        true_mask_liver))
         
         # Accumulate stats for global (dataset-wide) dice score.
-        dice_global['lesion']['I'] += np.logical_and(pred_mask_lesion,
-                                                     true_mask_lesion).sum()
-        dice_global['lesion']['S'] += pred_mask_lesion.sum() + \
-                                      true_mask_lesion.sum()
-        dice_global['liver']['I'] += np.logical_and(pred_mask_liver,
-                                                    true_mask_liver).sum()
-        dice_global['liver']['S'] += pred_mask_liver.sum() + \
-                                     true_mask_liver.sum()
+        dice_global_x['lesion']['I'] += np.logical_and(pred_mask_lesion,
+                                                       true_mask_lesion).sum()
+        dice_global_x['lesion']['S'] += pred_mask_lesion.sum() + \
+                                        true_mask_lesion.sum()
+        dice_global_x['liver']['I'] += np.logical_and(pred_mask_liver,
+                                                      true_mask_liver).sum()
+        dice_global_x['liver']['S'] += pred_mask_liver.sum() + \
+                                       true_mask_liver.sum()
             
         ##TODO Compute tumor burden.
         tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
@@ -146,7 +146,7 @@ lesion_segmentation_metrics = {}
 for m in lesion_segmentation_scores:
     lesion_segmentation_metrics[m] = np.mean(lesion_segmentation_scores)
 lesion_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['lesion'])
-dice_global = 2.*dice_global['lesion']['I']/dice_global['lesion']['S']
+dice_global = 2.*dice_global_x['lesion']['I']/dice_global_x['lesion']['S']
 lesion_segmentation_metrics['dice_global'] = dice_global
     
 # Compute liver segmentation metrics.
@@ -154,7 +154,7 @@ liver_segmentation_metrics = {}
 for m in liver_segmentation_scores:
     liver_segmentation_metrics[m] = np.mean(liver_segmentation_scores)
 liver_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['liver'])
-dice_global = 2.*dice_global['liver']['I']/dice_global['liver']['S']
+dice_global = 2.*dice_global_x['liver']['I']/dice_global_x['liver']['S']
 liver_segmentation_metrics['dice_global'] = dice_global
 
 ##TODO Compute tumor burden.
