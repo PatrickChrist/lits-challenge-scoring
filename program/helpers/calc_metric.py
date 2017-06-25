@@ -98,6 +98,12 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
     for i, obj_id in enumerate(np.unique(prediction_mask)):
         if obj_id==0:
             continue    # 0 is background, not an object; skip
+        import time
+        print("DEBUG {}: Processing obj {} of {}"
+              " -- shape {}, pred_size {}, ref_size {}"
+              "".format(time.time(), i, len(np.unique(prediction_mask))-1,
+                        reference_mask.shape, np.sum(prediction_mask==obj_id),
+                        np.sum(reference_mask==obj_id)))
         # Limit processing to the bounding box containing both the prediction
         # and reference objects.
         target_mask = (reference_mask==obj_id)+(prediction_mask==obj_id)

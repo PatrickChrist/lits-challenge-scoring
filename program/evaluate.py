@@ -98,6 +98,8 @@ for reference_volume_fn in reference_volume_list[:2]:
         gc.collect()
         
         # Compute segmentation scores for DETECTED lesions.
+        import time
+        print("DEBUG {}: Computing lesion scores.".format(time.time()))
         lesion_scores = compute_segmentation_scores( \
                                           prediction_mask=detected_mask_lesion,
                                           reference_mask=true_mask_lesion,
@@ -108,6 +110,7 @@ for reference_volume_fn in reference_volume_list[:2]:
             lesion_segmentation_scores[metric].extend(lesion_scores[metric])
         
         # Compute liver segmentation scores. 
+        print("DEBUG {}: Computing liver scores.".format(time.time()))
         liver_scores = compute_segmentation_scores( \
                                           prediction_mask=pred_mask_liver,
                                           reference_mask=true_mask_liver,
@@ -118,6 +121,7 @@ for reference_volume_fn in reference_volume_list[:2]:
             liver_segmentation_scores[metric].extend(liver_scores[metric])
             
         # Compute per-case (per patient volume) dice.
+        print("DEBUG {}: Computing lesion dice.".format(time.time()))
         dice_per_case['lesion'].append(dice(pred_mask_lesion,
                                             true_mask_lesion))
         dice_per_case['liver'].append(dice(pred_mask_liver,
@@ -133,7 +137,8 @@ for reference_volume_fn in reference_volume_list[:2]:
         dice_global_x['liver']['S'] += pred_mask_liver.sum() + \
                                        true_mask_liver.sum()
             
-        ##TODO Compute tumor burden.
+        # Compute tumor burden.
+        print("DEBUG {}: Computing tumor burden.".format(time.time()))
         tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
                                             reference_mask=true_mask_lesion)
         tumor_burden_list.append(tumor_burden)
