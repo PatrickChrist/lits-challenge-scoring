@@ -95,7 +95,9 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
               'rmsd': [],
               'msd': []}
     
-    for obj_id in np.unique(prediction_mask):
+    for i, obj_id in enumerate(np.unique(prediction_mask)):
+        if obj_id==0:
+            continue    # 0 is background, not an object; skip
         # Limit processing to the bounding box containing both the prediction
         # and reference objects.
         target_mask = (reference_mask==obj_id)+(prediction_mask==obj_id)
