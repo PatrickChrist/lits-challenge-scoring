@@ -65,8 +65,8 @@ def compute_tumor_burden(prediction_mask, reference_mask):
         num_les_pix=np.count_nonzero(vol==2)
         tumor_burden = num_les_pix/float(num_liv_pix)
         return tumor_burden
-    tumor_burden_label= calc_tumor_burden(label)
-    tumor_burden_pred = calc_tumor_burden(pred)
+    tumor_burden_label= calc_tumor_burden(reference_mask)
+    tumor_burden_pred = calc_tumor_burden(prediction_mask)
 
     tumor_burden_diff = tumor_burden_label - tumor_burden_pred
     return tumor_burden_diff
