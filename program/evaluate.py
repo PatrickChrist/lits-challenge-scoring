@@ -6,6 +6,7 @@ import nibabel as nb
 import numpy as np
 from scipy.ndimage.measurements import label as label_connected_components
 import glob
+import gc
 
 from helpers.calc_metric import (dice,
                                  detect_lesions,
@@ -38,42 +39,41 @@ dice_global_x = {'lesion': {'I': 0, 'S': 0},
 tumor_burden_list = []
 
 # Iterate over all volumes in the reference list.
-reference_volume_list = glob.glob(truth_dir+'/*.nii')
-for reference_volume in reference_volume_list:
-    print("Starting with volume {}".format(reference_volume))
-    reference_volume_path = reference_volume
+reference_volume_list = sorted(glob.glob(truth_dir+'/*.nii'))
+for reference_volume_fn in reference_volume_list[:2]:
+    print("Starting with volume {}".format(reference_volume_fn))
     submission_volume_path = os.path.join(submit_dir,
-                                          os.path.basename(reference_volume))
+                                          os.path.basename(reference_volume_fn))
     if os.path.exists(submission_volume_path):
         print("Found corresponding submission file {} for reference file {}"
-              "".format(reference_volume_path, submission_volume_path))
+              "".format(reference_volume_fn, submission_volume_path))
 
         # Load reference and submission volumes with Nibabel.
-        reference_volume = nb.load(reference_volume_path)
+        reference_volume = nb.load(reference_volume_fn)
         submission_volume = nb.load(submission_volume_path)
 
         # Get the current voxel spacing.
         voxel_spacing = reference_volume.header.get_zooms()[:3]
 
         # Get Numpy data and compress to int8.
-        reference_volume_data = (reference_volume.get_data()).astype(np.int8)
-        submission_volume_data = (submission_volume.get_data()).astype(np.int8)
+        reference_volume = (reference_volume.get_data()).astype(np.int8)
+        submission_volume = (submission_volume.get_data()).astype(np.int8)
         
         # Ensure that the shapes of the masks match.
-        if submission_volume_data.shape!=reference_volume_data.shape:
-            raise AttributeError("Shapes to not match! Prediction mask {}, "
+        if submission_volume.shape!=reference_volume.shape:
+            raise AttributeError("Shapes do not match! Prediction mask {}, "
                                  "ground truth mask {}"
-                                 "".format(submission_volume_data.shape,
-                                           reference_volume_data.shape))
+                                 "".format(submission_volume.shape,
+                                           reference_volume.shape))
         
         # Create lesion and liver masks with labeled connected components.
         # (Assuming there is always exactly one liver - one connected comp.)
-        pred_mask_lesion = \
-            label_connected_components(submission_volume_data==2)[0]
-        true_mask_lesion = \
-            label_connected_components(reference_volume_data==2)[0]
-        pred_mask_liver = submission_volume_data>=1
-        true_mask_liver = reference_volume_data>=1
+        pred_mask_lesion = label_connected_components( \
+                                       submission_volume==2)[0].astype(np.int8)
+        true_mask_lesion = label_connected_components( \
+                                       reference_volume==2)[0].astype(np.int8)
+        pred_mask_liver = submission_volume>=1
+        true_mask_liver = reference_volume>=1
         
         # Begin computing metrics.
         print("Start calculating metrics for submission file {}"
@@ -91,6 +91,11 @@ for reference_volume in reference_volume_list:
         lesion_detection_stats['TP']+=TP
         lesion_detection_stats['FP']+=FP
         lesion_detection_stats['FN']+=FN
+        
+        # Clear some memory
+        del reference_volume
+        del submission_volume
+        gc.collect()
         
         # Compute segmentation scores for DETECTED lesions.
         lesion_scores = compute_segmentation_scores( \
@@ -152,12 +157,12 @@ lesion_segmentation_metrics['dice_global'] = dice_global
 # Compute liver segmentation metrics.
 liver_segmentation_metrics = {}
 for m in liver_segmentation_scores:
-    liver_segmentation_metrics[m] = np.mean(liver_segmentation_scores)
+    liver_segmentation_metrics[m] = np.mean(liver_segmentation_scores[m])
 liver_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['liver'])
 dice_global = 2.*dice_global_x['liver']['I']/dice_global_x['liver']['S']
 liver_segmentation_metrics['dice_global'] = dice_global
 
-##TODO Compute tumor burden.
+# Compute tumor burden.
 tumor_burden_rmse = np.mean(np.sqrt(tumor_burden_list**2))
 tumor_burden_max = np.max(tumor_burden_list)
 
