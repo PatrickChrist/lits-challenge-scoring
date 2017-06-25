@@ -154,7 +154,7 @@ lesion_detection_metrics = {'precision': float(TP)/(TP+FP),
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}
 for m in lesion_segmentation_scores:
-    lesion_segmentation_metrics[m] = np.mean(lesion_segmentation_scores)
+    lesion_segmentation_metrics[m] = np.mean(lesion_segmentation_scores[m])
 lesion_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['lesion'])
 dice_global = 2.*dice_global_x['lesion']['I']/dice_global_x['lesion']['S']
 lesion_segmentation_metrics['dice_global'] = dice_global
