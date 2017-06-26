@@ -40,7 +40,7 @@ tumor_burden_list = []
 
 # Iterate over all volumes in the reference list.
 reference_volume_list = sorted(glob.glob(truth_dir+'/*.nii'))
-for reference_volume_fn in reference_volume_list[:2]:
+for reference_volume_fn in reference_volume_list:
     print("Starting with volume {}".format(reference_volume_fn))
     submission_volume_path = os.path.join(submit_dir,
                                           os.path.basename(reference_volume_fn))
