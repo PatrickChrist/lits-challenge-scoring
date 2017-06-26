@@ -168,7 +168,7 @@ dice_global = 2.*dice_global_x['liver']['I']/dice_global_x['liver']['S']
 liver_segmentation_metrics['dice_global'] = dice_global
 
 # Compute tumor burden.
-tumor_burden_rmse = np.mean(np.sqrt(tumor_burden_list**2))
+tumor_burden_rmse = np.sqrt(np.mean(np.square(tumor_burden_list)))
 tumor_burden_max = np.max(tumor_burden_list)
 
 
