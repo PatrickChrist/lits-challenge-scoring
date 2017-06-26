@@ -6,7 +6,6 @@ import nibabel as nb
 import numpy as np
 from scipy.ndimage.measurements import label as label_connected_components
 import glob
-import gc
 
 from helpers.calc_metric import (dice,
                                  detect_lesions,
@@ -92,11 +91,6 @@ for reference_volume_fn in reference_volume_list:
         lesion_detection_stats['FP']+=FP
         lesion_detection_stats['FN']+=FN
         
-        # Clear some memory
-        del reference_volume
-        del submission_volume
-        gc.collect()
-        
         # Compute segmentation scores for DETECTED lesions.
         import time
         print("DEBUG {}: Computing lesion scores.".format(time.time()))
@@ -139,8 +133,8 @@ for reference_volume_fn in reference_volume_list:
             
         # Compute tumor burden.
         print("DEBUG {}: Computing tumor burden.".format(time.time()))
-        tumor_burden = compute_tumor_burden(prediction_mask=pred_mask_lesion,
-                                            reference_mask=true_mask_lesion)
+        tumor_burden = compute_tumor_burden(prediction_mask=submission_volume,
+                                            reference_mask=reference_volume)
         tumor_burden_list.append(tumor_burden)
         
         
