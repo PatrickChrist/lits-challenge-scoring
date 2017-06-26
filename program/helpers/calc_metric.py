@@ -17,33 +17,35 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     
     :param prediction_mask: numpy.array, int or bool
     :param reference_mask: numpy.array, int or bool
-    :param min_overlap: float in range [0., 1.]
+    :param min_overlap: float in range [0.5, 1.]
     :return: integer mask (same shape as input masks)
     """
     
-    # Get available IDs
-    prediction_ids = np.unique(prediction_mask)[1:]
-    groundtruth_ids = np.unique(reference_mask)[1:]
+    if not min_overlap>0.5 and not min_overlap<=1:
+        # An overlap of 0.5 or less would allow a predicted object to "detect"
+        # more than one reference object but it would only be mapped to one
+        # of those reference objects in this code. The min_overlap determines
+        # the open lower bound.
+        raise ValueError("min_overlap must be in [0.5, 1.]")
+    
+    # Get available IDs (excluding 0)
+    p_id = np.unique(prediction_mask)[1:]
+    g_id = np.unique(reference_mask)[1:]
 
-    nb_pred_ids = len(prediction_ids)
-    nb_true_ids = len(groundtruth_ids)
+    nb_pred_ids = len(p_id)
+    nb_true_ids = len(g_id)
 
-    # Compute the overlap between each pair of IDs
-    overlap_matrix = np.zeros((nb_pred_ids, nb_true_ids), dtype="int")
-    for i in range(nb_pred_ids):
-        for j in range(nb_true_ids):
-            overlap_matrix[i, j] = np.sum(( \
-                        np.logical_and((prediction_mask==prediction_ids[i]),
-                                       (reference_mask==groundtruth_ids[j])) ))
-        
     # Produce output mask of detected lesions.
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint32)
     for i in range(nb_pred_ids):
         for j in range(nb_true_ids):
-            overlap_fraction = \
-                float(overlap_matrix[i,j]) / np.sum(reference_mask==j)
+            intersection = np.sum(np.logical_and(prediction_mask==p_id[i],
+                                                 reference_mask==g_id[j]))
+            union = np.sum(np.logical_or(prediction_mask==p_id[i],
+                                         reference_mask==g_id[j]))
+            overlap_fraction = float(intersection)/union
             if overlap_fraction > min_overlap:
-                detected_mask[prediction_mask==i] = j
+                detected_mask[prediction_mask==p_id[i]] = g_id[j]
                 
     return detected_mask
 
