@@ -28,24 +28,24 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         # the open lower bound.
         raise ValueError("min_overlap must be in [0.5, 1.]")
     
+    # Check only those lesions in the prediction that have any overlap with
+    # the ground truth.
+    
     # Get available IDs (excluding 0)
-    p_id = np.unique(prediction_mask)[1:]
-    g_id = np.unique(reference_mask)[1:]
-
-    nb_pred_ids = len(p_id)
-    nb_true_ids = len(g_id)
+    p_id_list = np.unique(prediction_mask[reference_mask.nonzero()])[1:]
+    g_id_list = np.unique(reference_mask)[1:]
 
     # Produce output mask of detected lesions.
-    detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint32)
-    for i in range(nb_pred_ids):
-        for j in range(nb_true_ids):
-            intersection = np.sum(np.logical_and(prediction_mask==p_id[i],
-                                                 reference_mask==g_id[j]))
-            union = np.sum(np.logical_or(prediction_mask==p_id[i],
-                                         reference_mask==g_id[j]))
+    detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    for p_id in p_id_list:
+        for g_id in g_id_list:
+            intersection = np.sum(np.logical_and(prediction_mask==p_id,
+                                                 reference_mask==g_id))
+            union = np.sum(np.logical_or(prediction_mask==p_id,
+                                         reference_mask==g_id))
             overlap_fraction = float(intersection)/union
             if overlap_fraction > min_overlap:
-                detected_mask[prediction_mask==p_id[i]] = g_id[j]
+                detected_mask[prediction_mask==p_id] = g_id
                 
     return detected_mask
 
@@ -55,8 +55,6 @@ def compute_tumor_burden(prediction_mask, reference_mask):
     """
     Calculates the tumor_burden and evalutes the tumor burden metrics RMSE and
     max error.
-    
-    #TODO: How are RMSE and max supposed to be derived from this measure?
     
     :param prediction_mask: numpy.array
     :param reference_mask: numpy.array
@@ -68,10 +66,10 @@ def compute_tumor_burden(prediction_mask, reference_mask):
         if num_liv_pix:
             return num_les_pix/float(num_liv_pix)
         return np.inf
-    tumor_burden_label= calc_tumor_burden(reference_mask)
-    tumor_burden_pred = calc_tumor_burden(prediction_mask)
+    tumor_burden_r = calc_tumor_burden(reference_mask)
+    tumor_burden_p = calc_tumor_burden(prediction_mask)
 
-    tumor_burden_diff = tumor_burden_label - tumor_burden_pred
+    tumor_burden_diff = tumor_burden_r - tumor_burden_p
     return tumor_burden_diff
 
 
