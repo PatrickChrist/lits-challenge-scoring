@@ -21,6 +21,11 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     :return: integer mask (same shape as input masks)
     """
     
+    # Initialize
+    detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    if not np.any(reference_mask):
+        return detected_mask, 0
+    
     if not min_overlap>0.5 and not min_overlap<=1:
         # An overlap of 0.5 or less would allow a predicted object to "detect"
         # more than one reference object but it would only be mapped to one
@@ -41,7 +46,6 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     g_id_list = np.unique(r)[1:]
 
     # Produce output mask of detected lesions.
-    detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
     num_detected = 0
     for p_id in p_id_list:
         for g_id in g_id_list:
@@ -117,7 +121,7 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
         bounding_box = ndimage.find_objects(target_mask)[0]
         p = (prediction_mask==obj_id)[bounding_box]
         r = (reference_mask==obj_id)[bounding_box]
-        if np.count_nonzero(p) and np.count_nonzero(r):
+        if np.any(p) and np.any(r):
             dice = metric.dc(p,r)
             jaccard = dice/(2.-dice)
             scores['dice'].append(dice)
