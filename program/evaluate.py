@@ -12,7 +12,7 @@ from helpers.calc_metric import (dice,
                                  detect_lesions,
                                  compute_segmentation_scores,
                                  compute_tumor_burden)
-
+from helpers.utils import time_elapsed
 
 
 # Check input directories.
@@ -47,6 +47,7 @@ for reference_volume_fn in reference_volume_list:
     if os.path.exists(submission_volume_path):
         print("Found corresponding submission file {} for reference file {}"
               "".format(reference_volume_fn, submission_volume_path))
+        t = time_elapsed()
 
         # Load reference and submission volumes with Nibabel.
         reference_volume = nb.load(reference_volume_fn)
@@ -65,19 +66,17 @@ for reference_volume_fn in reference_volume_list:
                                  "ground truth mask {}"
                                  "".format(submission_volume.shape,
                                            reference_volume.shape))
+        print("Done loading files ({:.2f} seconds)".format(t()))
         
         # Create lesion and liver masks with labeled connected components.
         # (Assuming there is always exactly one liver - one connected comp.)
         pred_mask_lesion, num_predicted = label_connected_components( \
-                                          submission_volume==2, output=np.int16)
+                                         submission_volume==2, output=np.int16)
         true_mask_lesion, num_reference = label_connected_components( \
-                                          reference_volume==2, output=np.int16)
+                                         reference_volume==2, output=np.int16)
         pred_mask_liver = submission_volume>=1
         true_mask_liver = reference_volume>=1
-        
-        # Begin computing metrics.
-        print("Start calculating metrics for submission file {}"
-              "".format(submission_volume_path))
+        print("Done finding connected components ({:.2f} seconds)".format(t()))
         
         # Identify detected lesions.
         detected_mask_lesion, num_detected = detect_lesions( \
@@ -89,10 +88,9 @@ for reference_volume_fn in reference_volume_list:
         lesion_detection_stats['TP']+=num_detected
         lesion_detection_stats['FP']+=num_predicted-num_detected
         lesion_detection_stats['FN']+=num_reference-num_detected
+        print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
         
         # Compute segmentation scores for DETECTED lesions.
-        import time
-        print("DEBUG {}: Computing lesion scores.".format(time.time()))
         lesion_scores = compute_segmentation_scores( \
                                           prediction_mask=detected_mask_lesion,
                                           reference_mask=true_mask_lesion,
@@ -101,9 +99,9 @@ for reference_volume_fn in reference_volume_list:
             if metric not in lesion_segmentation_scores:
                 lesion_segmentation_scores[metric] = []
             lesion_segmentation_scores[metric].extend(lesion_scores[metric])
+        print("Done computing lesion scores ({:.2f} seconds)".format(t()))
         
         # Compute liver segmentation scores. 
-        print("DEBUG {}: Computing liver scores.".format(time.time()))
         liver_scores = compute_segmentation_scores( \
                                           prediction_mask=pred_mask_liver,
                                           reference_mask=true_mask_liver,
@@ -112,9 +110,9 @@ for reference_volume_fn in reference_volume_list:
             if metric not in liver_segmentation_scores:
                 liver_segmentation_scores[metric] = []
             liver_segmentation_scores[metric].extend(liver_scores[metric])
+        print("Done computing liver scores ({:.2f} seconds)".format(t()))
             
         # Compute per-case (per patient volume) dice.
-        print("DEBUG {}: Computing lesion dice.".format(time.time()))
         dice_per_case['lesion'].append(dice(pred_mask_lesion,
                                             true_mask_lesion))
         dice_per_case['liver'].append(dice(pred_mask_liver,
@@ -129,13 +127,17 @@ for reference_volume_fn in reference_volume_list:
             np.logical_and(pred_mask_liver, true_mask_liver))
         dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
                                        np.count_nonzero(true_mask_liver)
+        print("Done computing additional dice scores ({:.2f} seconds)"
+              "".format(t()))
             
         # Compute tumor burden.
-        print("DEBUG {}: Computing tumor burden.".format(time.time()))
         tumor_burden = compute_tumor_burden(prediction_mask=submission_volume,
                                             reference_mask=reference_volume)
         tumor_burden_list.append(tumor_burden)
+        print("Done computing tumor burden diff ({:.2f} seconds)".format(t()))
         
+        print("Done processing volume (total time: {:.2f} seconds)"
+              "".format(t.total_elapsed()))
         gc.collect()
         
         
@@ -143,8 +145,8 @@ for reference_volume_fn in reference_volume_list:
 TP = lesion_detection_stats['TP']
 FP = lesion_detection_stats['FP']
 FN = lesion_detection_stats['FN']
-lesion_detection_metrics = {'precision': float(TP)/(TP+FP),
-                            'recall': float(TP)/(TP+FN)}
+lesion_detection_metrics = {'precision': float(TP)/(TP+FP) if TP+FP else 0,
+                            'recall': float(TP)/(TP+FN) if TP+FN else 0}
 
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}

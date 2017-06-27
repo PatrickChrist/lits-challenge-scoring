@@ -1,6 +1,7 @@
 from medpy import metric
 import numpy as np
 from scipy import ndimage
+import time
 
 from surface import Surface
 
@@ -23,8 +24,9 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     
     # Initialize
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    num_detected = 0
     if not np.any(reference_mask):
-        return detected_mask, 0
+        return detected_mask, num_detected
     
     if not min_overlap>0.5 and not min_overlap<=1:
         # An overlap of 0.5 or less would allow a predicted object to "detect"
@@ -46,7 +48,6 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     g_id_list = np.unique(r)[1:]
 
     # Produce output mask of detected lesions.
-    num_detected = 0
     for p_id in p_id_list:
         for g_id in g_id_list:
             intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
@@ -108,13 +109,7 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
     for i, obj_id in enumerate(np.unique(prediction_mask)):
         if obj_id==0:
             continue    # 0 is background, not an object; skip
-        import time
-        print("DEBUG {}: Processing obj {} of {}"
-              " -- shape {}, pred_size {}, ref_size {}"
-              "".format(time.time(), i, len(np.unique(prediction_mask))-1,
-                        reference_mask.shape,
-                        np.count_nonzero(prediction_mask==obj_id),
-                        np.count_nonzero(reference_mask==obj_id)))
+
         # Limit processing to the bounding box containing both the prediction
         # and reference objects.
         target_mask = (reference_mask==obj_id)+(prediction_mask==obj_id)
