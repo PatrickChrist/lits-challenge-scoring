@@ -42,6 +42,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
 
     # Produce output mask of detected lesions.
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    num_detected = 0
     for p_id in p_id_list:
         for g_id in g_id_list:
             intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
@@ -49,8 +50,9 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
             overlap_fraction = float(intersection)/union
             if overlap_fraction > min_overlap:
                 detected_mask[prediction_mask==p_id] = g_id
+                num_detected += 1
                 
-    return detected_mask
+    return detected_mask, num_detected
 
 
 

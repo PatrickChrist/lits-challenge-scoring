@@ -70,7 +70,7 @@ for reference_volume_fn in reference_volume_list:
         # (Assuming there is always exactly one liver - one connected comp.)
         pred_mask_lesion = label_connected_components( \
                                        submission_volume==2, output=np.int8)[0]
-        true_mask_lesion = label_connected_components( \
+        true_mask_lesion, num_reference = label_connected_components( \
                                        reference_volume==2, output=np.int8)[0]
         pred_mask_liver = submission_volume>=1
         true_mask_liver = reference_volume>=1
@@ -80,17 +80,15 @@ for reference_volume_fn in reference_volume_list:
               "".format(submission_volume_path))
         
         # Identify detected lesions.
-        detected_mask_lesion = detect_lesions(prediction_mask=pred_mask_lesion,
+        detected_mask_lesion, num_detected = detect_lesions( \
+                                              prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
                                               min_overlap=0.5)
         
         # Count true/false positive and false negative detections.
-        TP = len(np.unique(detected_mask_lesion))
-        FP = len(np.unique(pred_mask_lesion[detected_mask_lesion==0]))
-        FN = len(np.unique(true_mask_lesion[detected_mask_lesion==0]))
-        lesion_detection_stats['TP']+=TP
-        lesion_detection_stats['FP']+=FP
-        lesion_detection_stats['FN']+=FN
+        lesion_detection_stats['TP']+=num_detected
+        lesion_detection_stats['FP']+=num_predicted-num_detected
+        lesion_detection_stats['FN']+=num_reference-num_detected
         
         # Compute segmentation scores for DETECTED lesions.
         import time
