@@ -122,14 +122,14 @@ for reference_volume_fn in reference_volume_list:
                                            true_mask_liver))
         
         # Accumulate stats for global (dataset-wide) dice score.
-        dice_global_x['lesion']['I'] += np.logical_and(pred_mask_lesion,
-                                                       true_mask_lesion).sum()
-        dice_global_x['lesion']['S'] += pred_mask_lesion.sum() + \
-                                        true_mask_lesion.sum()
-        dice_global_x['liver']['I'] += np.logical_and(pred_mask_liver,
-                                                      true_mask_liver).sum()
-        dice_global_x['liver']['S'] += pred_mask_liver.sum() + \
-                                       true_mask_liver.sum()
+        dice_global_x['lesion']['I'] += np.count_nonzero( \
+            np.logical_and(pred_mask_lesion, true_mask_lesion))
+        dice_global_x['lesion']['S'] += np.count_nonzero(pred_mask_lesion) + \
+                                        np.count_nonzero(true_mask_lesion)
+        dice_global_x['liver']['I'] += np.count_nonzero( \
+            np.logical_and(pred_mask_liver, true_mask_liver))
+        dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
+                                       np.count_nonzero(true_mask_liver)
             
         # Compute tumor burden.
         print("DEBUG {}: Computing tumor burden.".format(time.time()))
