@@ -68,10 +68,10 @@ for reference_volume_fn in reference_volume_list:
         
         # Create lesion and liver masks with labeled connected components.
         # (Assuming there is always exactly one liver - one connected comp.)
-        pred_mask_lesion = label_connected_components( \
-                                       submission_volume==2, output=np.int8)[0]
+        pred_mask_lesion, num_predicted = label_connected_components( \
+                                          submission_volume==2, output=np.int16)
         true_mask_lesion, num_reference = label_connected_components( \
-                                       reference_volume==2, output=np.int8)[0]
+                                          reference_volume==2, output=np.int16)
         pred_mask_liver = submission_volume>=1
         true_mask_liver = reference_volume>=1
         
