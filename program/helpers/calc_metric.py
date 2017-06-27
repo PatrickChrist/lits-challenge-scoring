@@ -28,21 +28,24 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         # the open lower bound.
         raise ValueError("min_overlap must be in [0.5, 1.]")
     
-    # Check only those lesions in the prediction that have any overlap with
-    # the ground truth.
+    # To reduce computation time, get views into reduced size masks
+    bounding_box = ndimage.find_objects(reference_mask>0)[0]
+    p = prediction_mask[bounding_box]
+    r = reference_mask[bounding_box]
     
     # Get available IDs (excluding 0)
-    p_id_list = np.unique(prediction_mask[reference_mask.nonzero()])[1:]
-    g_id_list = np.unique(reference_mask)[1:]
+    # 
+    # To reduce computation time, check only those lesions in the prediction 
+    # that have any overlap with the ground truth.
+    p_id_list = np.unique(p[r.nonzero()])[1:]
+    g_id_list = np.unique(r)[1:]
 
     # Produce output mask of detected lesions.
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
     for p_id in p_id_list:
         for g_id in g_id_list:
-            intersection = np.sum(np.logical_and(prediction_mask==p_id,
-                                                 reference_mask==g_id))
-            union = np.sum(np.logical_or(prediction_mask==p_id,
-                                         reference_mask==g_id))
+            intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
+            union = np.count_nonzero(np.logical_or(p==p_id, r==g_id))
             overlap_fraction = float(intersection)/union
             if overlap_fraction > min_overlap:
                 detected_mask[prediction_mask==p_id] = g_id
@@ -103,8 +106,9 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
         print("DEBUG {}: Processing obj {} of {}"
               " -- shape {}, pred_size {}, ref_size {}"
               "".format(time.time(), i, len(np.unique(prediction_mask))-1,
-                        reference_mask.shape, np.sum(prediction_mask==obj_id),
-                        np.sum(reference_mask==obj_id)))
+                        reference_mask.shape,
+                        np.count_nonzero(prediction_mask==obj_id),
+                        np.count_nonzero(reference_mask==obj_id)))
         # Limit processing to the bounding box containing both the prediction
         # and reference objects.
         target_mask = (reference_mask==obj_id)+(prediction_mask==obj_id)
