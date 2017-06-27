@@ -6,6 +6,7 @@ import nibabel as nb
 import numpy as np
 from scipy.ndimage.measurements import label as label_connected_components
 import glob
+import gc
 
 from helpers.calc_metric import (dice,
                                  detect_lesions,
@@ -68,9 +69,9 @@ for reference_volume_fn in reference_volume_list:
         # Create lesion and liver masks with labeled connected components.
         # (Assuming there is always exactly one liver - one connected comp.)
         pred_mask_lesion = label_connected_components( \
-                                       submission_volume==2)[0].astype(np.int8)
+                                       submission_volume==2, output=np.int8)[0]
         true_mask_lesion = label_connected_components( \
-                                       reference_volume==2)[0].astype(np.int8)
+                                       reference_volume==2, output=np.int8)[0]
         pred_mask_liver = submission_volume>=1
         true_mask_liver = reference_volume>=1
         
@@ -136,6 +137,8 @@ for reference_volume_fn in reference_volume_list:
         tumor_burden = compute_tumor_burden(prediction_mask=submission_volume,
                                             reference_mask=reference_volume)
         tumor_burden_list.append(tumor_burden)
+        
+        gc.collect()
         
         
 # Compute lesion detection metrics.
