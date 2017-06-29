@@ -146,7 +146,9 @@ TP = lesion_detection_stats['TP']
 FP = lesion_detection_stats['FP']
 FN = lesion_detection_stats['FN']
 lesion_detection_metrics = {'precision': float(TP)/(TP+FP) if TP+FP else 0,
-                            'recall': float(TP)/(TP+FN) if TP+FN else 0}
+                            'recall': float(TP)/(TP+FN) if TP+FN else 0,
+                            'lesion_precision_greater_zero': 0,
+                            'lesion_recall_greater_zero': 0}
 
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}
