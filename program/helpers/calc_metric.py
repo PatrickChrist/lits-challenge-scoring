@@ -47,10 +47,11 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     bounding_box = ndimage.find_objects(target_mask)[0]
     p = prediction_mask[bounding_box]
     r = reference_mask[bounding_box]
+    d = detected_mask[bounding_box]
 
     # Compute intersection of predicted lesions with reference lesions.
-    intersection_matrix = np.zeros((len(p_id_list), len(g_id_list),
-                                    dtype=np.int32))
+    intersection_matrix = np.zeros((len(p_id_list), len(g_id_list)),
+                                    dtype=np.int32)
     for i, p_id in enumerate(p_id_list):
         for j, g_id in enumerate(g_id_list):
             intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
@@ -65,14 +66,14 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         g_id = g_id_list[j]
     
     # Label detected lesions.
-    for j, g_id in g_id_list:
+    for j, g_id in enumerate(g_id_list):
         intersection = intersection_matrix[:, j].sum()
         p_j = np.sum([p==p_id for \
                       p_id in p_id_list[intersection_matrix[:, j].nonzero()]])
         union = np.count_nonzero(np.logical_or(p_j, r==g_id))
         overlap_fraction = float(intersection)/union
         if overlap_fraction > min_overlap:
-            detected_mask[p_j] = g_id
+            d[p==p_j] = g_id
             num_detected += 1
                 
     return detected_mask, num_detected

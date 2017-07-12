@@ -83,7 +83,7 @@ for reference_volume_fn in reference_volume_list:
     # Identify detected lesions.
     # Retain detected_mask_lesion for overlap > 0.5
     for overlap in [0, 0.5]:
-        lesion_detection_stats[overlap] = {}
+        lesion_detection_stats[overlap] = {'TP': 0, 'FP': 0, 'FN': 0}
         detected_mask_lesion, num_detected = detect_lesions( \
                                               prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
@@ -155,10 +155,10 @@ for overlap in [0, 0.5]:
     precision = float(TP)/(TP+FP) if TP+FP else 0
     recall = float(TP)/(TP+FN) if TP+FN else 0
     _det[overlap] = {'p': precision, 'r': recall}
-lesion_detection_metrics{'precision': _det[0.5]['p'],
-                         'recall': _det[0.5]['r'],
-                         'lesion_precision_greater_zero': _det[0]['p'],
-                         'lesion_recall_greater_zero': _det[0]['r']}
+lesion_detection_metrics = {'precision': _det[0.5]['p'],
+                            'recall': _det[0.5]['r'],
+                            'lesion_precision_greater_zero': _det[0]['p'],
+                            'lesion_recall_greater_zero': _det[0]['r']}
 
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}
