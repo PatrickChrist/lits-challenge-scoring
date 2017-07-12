@@ -184,28 +184,28 @@ tumor_burden_max = np.max(tumor_burden_list)
 # Print results to stdout.
 print("Computed LESION DETECTION metrics:")
 for metric, value in lesion_detection_metrics.items():
-    print("{}: {:.2f}".format(metric, float(value)))
+    print("{}: {:.3f}".format(metric, float(value)))
 print("Computed LESION SEGMENTATION metrics (for detected lesions):")
 for metric, value in lesion_segmentation_metrics.items():
-    print("{}: {:.2f}".format(metric, float(value)))
+    print("{}: {:.3f}".format(metric, float(value)))
 print("Computed LIVER SEGMENTATION metrics:")
 for metric, value in liver_segmentation_metrics.items():
-    print("{}: {:.2f}".format(metric, float(value)))
+    print("{}: {:.3f}".format(metric, float(value)))
 print("Computed TUMOR BURDEN: \n"
-    "rmse: {:.2f}\nmax: {:.2f}".format(tumor_burden_rmse, tumor_burden_max))
+    "rmse: {:.3f}\nmax: {:.3f}".format(tumor_burden_rmse, tumor_burden_max))
 
 # Write metrics to file.
 output_filename = os.path.join(output_dir, 'scores.txt')
 output_file = open(output_filename, 'wb')
 for metric, value in lesion_detection_metrics.items():
-    output_file.write("lesion_{}: {:.2f}\n".format(metric, float(value)))
+    output_file.write("lesion_{}: {:.3f}\n".format(metric, float(value)))
 for metric, value in lesion_segmentation_metrics.items():
-    output_file.write("lesion_{}: {:.2f}\n".format(metric, float(value)))
+    output_file.write("lesion_{}: {:.3f}\n".format(metric, float(value)))
 for metric, value in liver_segmentation_metrics.items():
-    output_file.write("liver_{}: {:.2f}\n".format(metric, float(value)))
+    output_file.write("liver_{}: {:.3f}\n".format(metric, float(value)))
 
 #Tumorburden
-output_file.write("RMSE_Tumorburden: {:.2f}\n".format(tumor_burden_rmse))
-output_file.write("MAXERROR_Tumorburden: {:.2f}\n".format(tumor_burden_max))
+output_file.write("RMSE_Tumorburden: {:.3f}\n".format(tumor_burden_rmse))
+output_file.write("MAXERROR_Tumorburden: {:.3f}\n".format(tumor_burden_max))
 
 output_file.close()
