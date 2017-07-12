@@ -44,104 +44,106 @@ for reference_volume_fn in reference_volume_list:
     print("Starting with volume {}".format(reference_volume_fn))
     submission_volume_path = os.path.join(submit_dir,
                                           os.path.basename(reference_volume_fn))
-    if os.path.exists(submission_volume_path):
-        print("Found corresponding submission file {} for reference file {}"
-              "".format(reference_volume_fn, submission_volume_path))
-        t = time_elapsed()
+    if not os.path.exists(submission_volume_path):
+        raise ValueError("Submission volume not found - terminating!"
+                         "Missing volume: {}".format(submission_volume_path))
+    print("Found corresponding submission file {} for reference file {}"
+          "".format(reference_volume_fn, submission_volume_path))
+    t = time_elapsed()
 
-        # Load reference and submission volumes with Nibabel.
-        reference_volume = nb.load(reference_volume_fn)
-        submission_volume = nb.load(submission_volume_path)
+    # Load reference and submission volumes with Nibabel.
+    reference_volume = nb.load(reference_volume_fn)
+    submission_volume = nb.load(submission_volume_path)
 
-        # Get the current voxel spacing.
-        voxel_spacing = reference_volume.header.get_zooms()[:3]
+    # Get the current voxel spacing.
+    voxel_spacing = reference_volume.header.get_zooms()[:3]
 
-        # Get Numpy data and compress to int8.
-        reference_volume = (reference_volume.get_data()).astype(np.int8)
-        submission_volume = (submission_volume.get_data()).astype(np.int8)
-        
-        # Ensure that the shapes of the masks match.
-        if submission_volume.shape!=reference_volume.shape:
-            raise AttributeError("Shapes do not match! Prediction mask {}, "
-                                 "ground truth mask {}"
-                                 "".format(submission_volume.shape,
-                                           reference_volume.shape))
-        print("Done loading files ({:.2f} seconds)".format(t()))
-        
-        # Create lesion and liver masks with labeled connected components.
-        # (Assuming there is always exactly one liver - one connected comp.)
-        pred_mask_lesion, num_predicted = label_connected_components( \
+    # Get Numpy data and compress to int8.
+    reference_volume = (reference_volume.get_data()).astype(np.int8)
+    submission_volume = (submission_volume.get_data()).astype(np.int8)
+    
+    # Ensure that the shapes of the masks match.
+    if submission_volume.shape!=reference_volume.shape:
+        raise AttributeError("Shapes do not match! Prediction mask {}, "
+                             "ground truth mask {}"
+                             "".format(submission_volume.shape,
+                                       reference_volume.shape))
+    print("Done loading files ({:.2f} seconds)".format(t()))
+    
+    # Create lesion and liver masks with labeled connected components.
+    # (Assuming there is always exactly one liver - one connected comp.)
+    pred_mask_lesion, num_predicted = label_connected_components( \
                                          submission_volume==2, output=np.int16)
-        true_mask_lesion, num_reference = label_connected_components( \
+    true_mask_lesion, num_reference = label_connected_components( \
                                          reference_volume==2, output=np.int16)
-        pred_mask_liver = submission_volume>=1
-        true_mask_liver = reference_volume>=1
-        print("Done finding connected components ({:.2f} seconds)".format(t()))
-        
-        # Identify detected lesions.
-        # Retain detected_mask_lesion for overlap > 0.5
-        for overlap in [0, 0.5]:
-            lesion_detection_stats[overlap] = {}
-            detected_mask_lesion, num_detected = detect_lesions( \
+    pred_mask_liver = submission_volume>=1
+    true_mask_liver = reference_volume>=1
+    print("Done finding connected components ({:.2f} seconds)".format(t()))
+    
+    # Identify detected lesions.
+    # Retain detected_mask_lesion for overlap > 0.5
+    for overlap in [0, 0.5]:
+        lesion_detection_stats[overlap] = {}
+        detected_mask_lesion, num_detected = detect_lesions( \
                                               prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
                                               min_overlap=overlap)
-        
-            # Count true/false positive and false negative detections.
-            lesion_detection_stats[overlap]['TP']+=num_detected
-            lesion_detection_stats[overlap]['FP']+=num_predicted-num_detected
-            lesion_detection_stats[overlap]['FN']+=num_reference-num_detected
-        print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
-        
-        # Compute segmentation scores for DETECTED lesions.
-        lesion_scores = compute_segmentation_scores( \
+    
+        # Count true/false positive and false negative detections.
+        lesion_detection_stats[overlap]['TP']+=num_detected
+        lesion_detection_stats[overlap]['FP']+=num_predicted-num_detected
+        lesion_detection_stats[overlap]['FN']+=num_reference-num_detected
+    print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
+    
+    # Compute segmentation scores for DETECTED lesions.
+    lesion_scores = compute_segmentation_scores( \
                                           prediction_mask=detected_mask_lesion,
                                           reference_mask=true_mask_lesion,
                                           voxel_spacing=voxel_spacing)
-        for metric in lesion_scores:
-            if metric not in lesion_segmentation_scores:
-                lesion_segmentation_scores[metric] = []
-            lesion_segmentation_scores[metric].extend(lesion_scores[metric])
-        print("Done computing lesion scores ({:.2f} seconds)".format(t()))
-        
-        # Compute liver segmentation scores. 
-        liver_scores = compute_segmentation_scores( \
+    for metric in lesion_scores:
+        if metric not in lesion_segmentation_scores:
+            lesion_segmentation_scores[metric] = []
+        lesion_segmentation_scores[metric].extend(lesion_scores[metric])
+    print("Done computing lesion scores ({:.2f} seconds)".format(t()))
+    
+    # Compute liver segmentation scores. 
+    liver_scores = compute_segmentation_scores( \
                                           prediction_mask=pred_mask_liver,
                                           reference_mask=true_mask_liver,
                                           voxel_spacing=voxel_spacing)
-        for metric in liver_scores:
-            if metric not in liver_segmentation_scores:
-                liver_segmentation_scores[metric] = []
-            liver_segmentation_scores[metric].extend(liver_scores[metric])
-        print("Done computing liver scores ({:.2f} seconds)".format(t()))
-            
-        # Compute per-case (per patient volume) dice.
-        dice_per_case['lesion'].append(dice(pred_mask_lesion,
-                                            true_mask_lesion))
-        dice_per_case['liver'].append(dice(pred_mask_liver,
-                                           true_mask_liver))
+    for metric in liver_scores:
+        if metric not in liver_segmentation_scores:
+            liver_segmentation_scores[metric] = []
+        liver_segmentation_scores[metric].extend(liver_scores[metric])
+    print("Done computing liver scores ({:.2f} seconds)".format(t()))
         
-        # Accumulate stats for global (dataset-wide) dice score.
-        dice_global_x['lesion']['I'] += np.count_nonzero( \
-            np.logical_and(pred_mask_lesion, true_mask_lesion))
-        dice_global_x['lesion']['S'] += np.count_nonzero(pred_mask_lesion) + \
-                                        np.count_nonzero(true_mask_lesion)
-        dice_global_x['liver']['I'] += np.count_nonzero( \
-            np.logical_and(pred_mask_liver, true_mask_liver))
-        dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
-                                       np.count_nonzero(true_mask_liver)
-        print("Done computing additional dice scores ({:.2f} seconds)"
-              "".format(t()))
-            
-        # Compute tumor burden.
-        tumor_burden = compute_tumor_burden(prediction_mask=submission_volume,
-                                            reference_mask=reference_volume)
-        tumor_burden_list.append(tumor_burden)
-        print("Done computing tumor burden diff ({:.2f} seconds)".format(t()))
+    # Compute per-case (per patient volume) dice.
+    dice_per_case['lesion'].append(dice(pred_mask_lesion,
+                                        true_mask_lesion))
+    dice_per_case['liver'].append(dice(pred_mask_liver,
+                                       true_mask_liver))
+    
+    # Accumulate stats for global (dataset-wide) dice score.
+    dice_global_x['lesion']['I'] += np.count_nonzero( \
+        np.logical_and(pred_mask_lesion, true_mask_lesion))
+    dice_global_x['lesion']['S'] += np.count_nonzero(pred_mask_lesion) + \
+                                    np.count_nonzero(true_mask_lesion)
+    dice_global_x['liver']['I'] += np.count_nonzero( \
+        np.logical_and(pred_mask_liver, true_mask_liver))
+    dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
+                                   np.count_nonzero(true_mask_liver)
+    print("Done computing additional dice scores ({:.2f} seconds)"
+          "".format(t()))
         
-        print("Done processing volume (total time: {:.2f} seconds)"
-              "".format(t.total_elapsed()))
-        gc.collect()
+    # Compute tumor burden.
+    tumor_burden = compute_tumor_burden(prediction_mask=submission_volume,
+                                        reference_mask=reference_volume)
+    tumor_burden_list.append(tumor_burden)
+    print("Done computing tumor burden diff ({:.2f} seconds)".format(t()))
+    
+    print("Done processing volume (total time: {:.2f} seconds)"
+          "".format(t.total_elapsed()))
+    gc.collect()
         
         
 # Compute lesion detection metrics.
