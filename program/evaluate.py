@@ -30,7 +30,7 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 # Initialize results dictionaries
-lesion_detection_stats = {'TP': 0, 'FP': 0, 'FN': 0}
+lesion_detection_stats = {}
 lesion_segmentation_scores = {}
 liver_segmentation_scores = {}
 dice_per_case = {'lesion': [], 'liver': []}
@@ -79,15 +79,18 @@ for reference_volume_fn in reference_volume_list:
         print("Done finding connected components ({:.2f} seconds)".format(t()))
         
         # Identify detected lesions.
-        detected_mask_lesion, num_detected = detect_lesions( \
+        # Retain detected_mask_lesion for overlap > 0.5
+        for overlap in [0, 0.5]:
+            lesion_detection_stats[overlap] = {}
+            detected_mask_lesion, num_detected = detect_lesions( \
                                               prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
-                                              min_overlap=0.5)
+                                              min_overlap=overlap)
         
-        # Count true/false positive and false negative detections.
-        lesion_detection_stats['TP']+=num_detected
-        lesion_detection_stats['FP']+=num_predicted-num_detected
-        lesion_detection_stats['FN']+=num_reference-num_detected
+            # Count true/false positive and false negative detections.
+            lesion_detection_stats[overlap]['TP']+=num_detected
+            lesion_detection_stats[overlap]['FP']+=num_predicted-num_detected
+            lesion_detection_stats[overlap]['FN']+=num_reference-num_detected
         print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
         
         # Compute segmentation scores for DETECTED lesions.
@@ -142,13 +145,18 @@ for reference_volume_fn in reference_volume_list:
         
         
 # Compute lesion detection metrics.
-TP = lesion_detection_stats['TP']
-FP = lesion_detection_stats['FP']
-FN = lesion_detection_stats['FN']
-lesion_detection_metrics = {'precision': float(TP)/(TP+FP) if TP+FP else 0,
-                            'recall': float(TP)/(TP+FN) if TP+FN else 0,
-                            'lesion_precision_greater_zero': 0,
-                            'lesion_recall_greater_zero': 0}
+_det = {}
+for overlap in [0, 0.5]:
+    TP = lesion_detection_stats[overlap]['TP']
+    FP = lesion_detection_stats[overlap]['FP']
+    FN = lesion_detection_stats[overlap]['FN']
+    precision = float(TP)/(TP+FP) if TP+FP else 0
+    recall = float(TP)/(TP+FN) if TP+FN else 0
+    _det[overlap] = {'p': precision, 'r': recall}
+lesion_detection_metrics{'precision': _det[0.5]['p'],
+                         'recall': _det[0.5]['r'],
+                         'lesion_precision_greater_zero': _det[0]['p'],
+                         'lesion_recall_greater_zero': _det[0]['r']}
 
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}

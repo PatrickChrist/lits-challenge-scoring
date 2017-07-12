@@ -16,9 +16,9 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     `min_overlap` with the ground truth. The label IDs in the output mask
     match the label IDs of the corresponding lesions in the ground truth.
     
-    :param prediction_mask: numpy.array, int or bool
-    :param reference_mask: numpy.array, int or bool
-    :param min_overlap: float in range [0.5, 1.]
+    :param prediction_mask: numpy.array
+    :param reference_mask: numpy.array
+    :param min_overlap: float in range [0, 1.]
     :return: integer mask (same shape as input masks)
     """
     
@@ -28,37 +28,54 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     if not np.any(reference_mask):
         return detected_mask, num_detected
     
-    if not min_overlap>0.5 and not min_overlap<=1:
-        # An overlap of 0.5 or less would allow a predicted object to "detect"
-        # more than one reference object but it would only be mapped to one
-        # of those reference objects in this code. The min_overlap determines
-        # the open lower bound.
-        raise ValueError("min_overlap must be in [0.5, 1.]")
-    
-    # To reduce computation time, get views into reduced size masks
-    bounding_box = ndimage.find_objects(reference_mask>0)[0]
-    p = prediction_mask[bounding_box]
-    r = reference_mask[bounding_box]
+    if not min_overlap>0 and not min_overlap<=1:
+        raise ValueError("min_overlap must be in [0, 1.]")
     
     # Get available IDs (excluding 0)
     # 
     # To reduce computation time, check only those lesions in the prediction 
     # that have any overlap with the ground truth.
-    p_id_list = np.unique(p[r.nonzero()])[1:]
-    g_id_list = np.unique(r)[1:]
+    p_id_list = np.unique(prediction_mask[reference_mask.nonzero()])[1:]
+    g_id_list = np.unique(reference_mask)[1:]
+    
+    # To reduce computation time, get views into reduced size masks.
+    reduced_prediction_mask = prediction_mask.copy()
+    for p_id in np.unique(prediction_mask):
+        if p_id not in p_id_list:
+            reduced_prediction_mask[p_id] = 0
+    target_mask = np.logical_or(reference_mask, reduced_prediction_mask)
+    bounding_box = ndimage.find_objects(target_mask)[0]
+    p = prediction_mask[bounding_box]
+    r = reference_mask[bounding_box]
 
-    # Produce output mask of detected lesions.
-    for p_id in p_id_list:
-        for g_id in g_id_list:
+    # Compute intersection of predicted lesions with reference lesions.
+    intersection_matrix = np.zeros((len(p_id_list), len(g_id_list),
+                                    dtype=np.int32))
+    for i, p_id in enumerate(p_id_list):
+        for j, g_id in enumerate(g_id_list):
             intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
-            union = np.count_nonzero(np.logical_or(p==p_id, r==g_id))
-            overlap_fraction = float(intersection)/union
-            if overlap_fraction > min_overlap:
-                detected_mask[prediction_mask==p_id] = g_id
-                num_detected += 1
+            intersection_matrix[i, j] = intersection
+                
+    # Merge predicted lesions corresponding to the same reference lesion.
+    for i, p_id in enumerate(p_id_list):
+        j = np.argmax(intersection_matrix[i])
+        max_val = intersection_matrix[i, j]
+        intersection_matrix[i] = 0
+        intersection_matrix[i, j] = max_val
+        g_id = g_id_list[j]
+    
+    # Label detected lesions.
+    for j, g_id in g_id_list:
+        intersection = intersection_matrix[:, j].sum()
+        p_j = np.sum([p==p_id for \
+                      p_id in p_id_list[intersection_matrix[:, j].nonzero()]])
+        union = np.count_nonzero(np.logical_or(p_j, r==g_id))
+        overlap_fraction = float(intersection)/union
+        if overlap_fraction > min_overlap:
+            detected_mask[p_j] = g_id
+            num_detected += 1
                 
     return detected_mask, num_detected
-
 
 
 def compute_tumor_burden(prediction_mask, reference_mask):
