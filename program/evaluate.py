@@ -19,18 +19,35 @@ from helpers.utils import time_elapsed
 submit_dir = os.path.join(sys.argv[1], 'res')
 truth_dir = os.path.join(sys.argv[1], 'ref')
 if not os.path.isdir(submit_dir):
-    print("{} doesn't exist".format(submit_dir))
+    print("submit_dir {} doesn't exist".format(submit_dir))
     sys.exit()
 if not os.path.isdir(truth_dir):
+    print("truth_dir {} doesn't exist".format(submit_dir))
     sys.exit()
 
 # Create output directory.
 output_dir = sys.argv[2]
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
+    
+# Segmentation metrics and their default values for when there are no detected
+# objects on which to evaluate them.
+#
+# Surface distance (and volume difference) metrics between two masks are
+# meaningless when any one of the masks is empty. Assign maximum (infinite)
+# penalty. The average score for these metrics, over all objects, will thus
+# also not be finite as it also loses meaning.
+segmentation_metrics = {'dice': 0,
+                        'jaccard': 0,
+                        'voe': 1,
+                        'rvd': np.inf,
+                        'assd': np.inf,
+                        'rmsd': np.inf,
+                        'msd': np.inf}
 
 # Initialize results dictionaries
-lesion_detection_stats = {}
+lesion_detection_stats = {0:   {'TP': 0, 'FP': 0, 'FN': 0},
+                          0.5: {'TP': 0, 'FP': 0, 'FN': 0}}
 lesion_segmentation_scores = {}
 liver_segmentation_scores = {}
 dice_per_case = {'lesion': [], 'liver': []}
@@ -45,7 +62,7 @@ for reference_volume_fn in reference_volume_list:
     submission_volume_path = os.path.join(submit_dir,
                                           os.path.basename(reference_volume_fn))
     if not os.path.exists(submission_volume_path):
-        raise ValueError("Submission volume not found - terminating!"
+        raise ValueError("Submission volume not found - terminating!\n"
                          "Missing volume: {}".format(submission_volume_path))
     print("Found corresponding submission file {} for reference file {}"
           "".format(reference_volume_fn, submission_volume_path))
@@ -78,60 +95,88 @@ for reference_volume_fn in reference_volume_list:
                                          reference_volume==2, output=np.int16)
     pred_mask_liver = submission_volume>=1
     true_mask_liver = reference_volume>=1
+    liver_prediction_exists = np.any(submission_volume==1)
     print("Done finding connected components ({:.2f} seconds)".format(t()))
     
     # Identify detected lesions.
     # Retain detected_mask_lesion for overlap > 0.5
     for overlap in [0, 0.5]:
-        lesion_detection_stats[overlap] = {'TP': 0, 'FP': 0, 'FN': 0}
-        detected_mask_lesion, num_detected = detect_lesions( \
+        detected_mask_lesion, mod_ref_mask, \
+        num_detected, num_g_merged, num_p_merged = detect_lesions( \
                                               prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
                                               min_overlap=overlap)
+        
+        # Adjust lesion count to account for merged lesions.
+        num_predicted_m = num_predicted-num_p_merged
+        num_reference_m = num_reference-num_g_merged
     
         # Count true/false positive and false negative detections.
         lesion_detection_stats[overlap]['TP']+=num_detected
-        lesion_detection_stats[overlap]['FP']+=num_predicted-num_detected
-        lesion_detection_stats[overlap]['FN']+=num_reference-num_detected
+        lesion_detection_stats[overlap]['FP']+=num_predicted_m-num_detected
+        lesion_detection_stats[overlap]['FN']+=num_reference_m-num_detected
     print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
     
     # Compute segmentation scores for DETECTED lesions.
-    lesion_scores = compute_segmentation_scores( \
+    if num_detected>0:
+        lesion_scores = compute_segmentation_scores( \
                                           prediction_mask=detected_mask_lesion,
-                                          reference_mask=true_mask_lesion,
+                                          reference_mask=mod_ref_mask,
                                           voxel_spacing=voxel_spacing)
-    for metric in lesion_scores:
-        if metric not in lesion_segmentation_scores:
-            lesion_segmentation_scores[metric] = []
-        lesion_segmentation_scores[metric].extend(lesion_scores[metric])
-    print("Done computing lesion scores ({:.2f} seconds)".format(t()))
+        for metric in segmentation_metrics:
+            if metric not in lesion_segmentation_scores:
+                lesion_segmentation_scores[metric] = []
+            lesion_segmentation_scores[metric].extend(lesion_scores[metric])
+        print("Done computing lesion scores ({:.2f} seconds)".format(t()))
+    else:
+        print("No lesions detected, skipping lesion score evaluation")
     
     # Compute liver segmentation scores. 
-    liver_scores = compute_segmentation_scores( \
+    if liver_prediction_exists:
+        liver_scores = compute_segmentation_scores( \
                                           prediction_mask=pred_mask_liver,
                                           reference_mask=true_mask_liver,
                                           voxel_spacing=voxel_spacing)
-    for metric in liver_scores:
-        if metric not in liver_segmentation_scores:
-            liver_segmentation_scores[metric] = []
-        liver_segmentation_scores[metric].extend(liver_scores[metric])
-    print("Done computing liver scores ({:.2f} seconds)".format(t()))
+        for metric in segmentation_metrics:
+            if metric not in liver_segmentation_scores:
+                liver_segmentation_scores[metric] = []
+            liver_segmentation_scores[metric].extend(liver_scores[metric])
+        print("Done computing liver scores ({:.2f} seconds)".format(t()))
+    else:
+        # No liver label. Record default score values (zeros, inf).
+        # NOTE: This will make some metrics evaluate to inf over the entire
+        # dataset.
+        for metric in segmentation_metrics:
+            if metric not in liver_segmentation_scores:
+                liver_segmentation_scores[metric] = []
+            liver_segmentation_scores[metric].append(\
+                                                  segmentation_metrics[metric])
+        print("No liver label provided, skipping liver score evaluation")
         
     # Compute per-case (per patient volume) dice.
     dice_per_case['lesion'].append(dice(pred_mask_lesion,
                                         true_mask_lesion))
-    dice_per_case['liver'].append(dice(pred_mask_liver,
-                                       true_mask_liver))
+    if liver_prediction_exists:
+        dice_per_case['liver'].append(dice(pred_mask_liver,
+                                           true_mask_liver))
+    else:
+        dice_per_case['liver'].append(0)
     
     # Accumulate stats for global (dataset-wide) dice score.
     dice_global_x['lesion']['I'] += np.count_nonzero( \
         np.logical_and(pred_mask_lesion, true_mask_lesion))
     dice_global_x['lesion']['S'] += np.count_nonzero(pred_mask_lesion) + \
                                     np.count_nonzero(true_mask_lesion)
-    dice_global_x['liver']['I'] += np.count_nonzero( \
-        np.logical_and(pred_mask_liver, true_mask_liver))
-    dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
-                                   np.count_nonzero(true_mask_liver)
+    if liver_prediction_exists:
+        dice_global_x['liver']['I'] += np.count_nonzero( \
+            np.logical_and(pred_mask_liver, true_mask_liver))
+        dice_global_x['liver']['S'] += np.count_nonzero(pred_mask_liver) + \
+                                       np.count_nonzero(true_mask_liver)
+    else:
+        # NOTE: This value should never be zero.
+        dice_global_x['liver']['S'] += np.count_nonzero(true_mask_liver)
+        
+        
     print("Done computing additional dice scores ({:.2f} seconds)"
           "".format(t()))
         
@@ -164,6 +209,9 @@ lesion_detection_metrics = {'precision': _det[0.5]['p'],
 lesion_segmentation_metrics = {}
 for m in lesion_segmentation_scores:
     lesion_segmentation_metrics[m] = np.mean(lesion_segmentation_scores[m])
+if len(lesion_segmentation_scores)==0:
+    # Nothing detected - set default values.
+    lesion_segmentation_metrics.update(segmentation_metrics)
 lesion_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['lesion'])
 dice_global = 2.*dice_global_x['lesion']['I']/dice_global_x['lesion']['S']
 lesion_segmentation_metrics['dice_global'] = dice_global
@@ -172,6 +220,9 @@ lesion_segmentation_metrics['dice_global'] = dice_global
 liver_segmentation_metrics = {}
 for m in liver_segmentation_scores:
     liver_segmentation_metrics[m] = np.mean(liver_segmentation_scores[m])
+if len(liver_segmentation_scores)==0:
+    # Nothing detected - set default values.
+    liver_segmentation_metrics.update(segmentation_metrics)
 liver_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['liver'])
 dice_global = 2.*dice_global_x['liver']['I']/dice_global_x['liver']['S']
 liver_segmentation_metrics['dice_global'] = dice_global
@@ -196,7 +247,7 @@ print("Computed TUMOR BURDEN: \n"
 
 # Write metrics to file.
 output_filename = os.path.join(output_dir, 'scores.txt')
-output_file = open(output_filename, 'wb')
+output_file = open(output_filename, 'w')
 for metric, value in lesion_detection_metrics.items():
     output_file.write("lesion_{}: {:.3f}\n".format(metric, float(value)))
 for metric, value in lesion_segmentation_metrics.items():
