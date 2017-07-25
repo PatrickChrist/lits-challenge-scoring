@@ -3,7 +3,7 @@ import numpy as np
 from scipy import ndimage
 import time
 
-from surface import Surface
+from .surface import Surface
 
 
 def dice(input1, input2):
@@ -12,18 +12,25 @@ def dice(input1, input2):
 
 def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     """
-    Produces a mask containing predicted lesions that overlap by at least
-    `min_overlap` with the ground truth. The label IDs in the output mask
-    match the label IDs of the corresponding lesions in the ground truth.
+    Produces a mask for predicted lesions and a mask for reference lesions,
+    with label IDs matching lesions together. A (set of) lesion(s) in the
+    reference is considered detected if a set of blobs in the prediction
+    overlaps the set of blobs in the reference by `min_overlap` (intersection
+    over union).
     
     :param prediction_mask: numpy.array
     :param reference_mask: numpy.array
     :param min_overlap: float in range [0, 1.]
-    :return: integer mask (same shape as input masks)
+    :return: prediction mask (int),
+             reference mask (int),
+             num_detected,
+             reduction in number of reference lesions due to merging,
+             reduction in number of predicted lesions due to merging
     """
     
     # Initialize
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    mod_reference_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
     num_detected = 0
     if not np.any(reference_mask):
         return detected_mask, num_detected
@@ -45,9 +52,10 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
             reduced_prediction_mask[p_id] = 0
     target_mask = np.logical_or(reference_mask, reduced_prediction_mask)
     bounding_box = ndimage.find_objects(target_mask)[0]
-    p = prediction_mask[bounding_box]
     r = reference_mask[bounding_box]
+    p = prediction_mask[bounding_box]
     d = detected_mask[bounding_box]
+    m = mod_reference_mask[bounding_box]
 
     # Compute intersection of predicted lesions with reference lesions.
     intersection_matrix = np.zeros((len(p_id_list), len(g_id_list)),
@@ -56,27 +64,87 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         for j, g_id in enumerate(g_id_list):
             intersection = np.count_nonzero(np.logical_and(p==p_id, r==g_id))
             intersection_matrix[i, j] = intersection
-                
-    # Merge predicted lesions corresponding to the same reference lesion.
-    for i, p_id in enumerate(p_id_list):
-        j = np.argmax(intersection_matrix[i])
-        max_val = intersection_matrix[i, j]
-        intersection_matrix[i] = 0
-        intersection_matrix[i, j] = max_val
-        g_id = g_id_list[j]
     
-    # Label detected lesions.
+    def sum_dims(x, axis, dims):
+        '''
+        Given an array x, collapses dimensions listed in dims along the 
+        specified axis, summing them together. Returns the reduced array.
+        '''
+        x = np.array(x)
+        if len(dims)==0:
+            return x
+        
+        # Initialize output
+        new_shape = list(x.shape)
+        new_shape[axis] -= len(dims)-1
+        x_ret = np.zeros(new_shape, dtype=x.dtype)
+        
+        # Sum over dims on axis
+        sum_slices = [slice(None)]*x.ndim
+        sum_slices[axis] = dims
+        dim_sum = np.sum(x[sum_slices])
+        
+        # Remove all but first dim in dims
+        mask = np.ones(x.shape, dtype=np.bool)
+        mask_slices = [slice(None)]*x.ndim
+        mask_slices[axis] = dims[1:]
+        mask[mask_slices] = 0
+        x_ret.ravel()[...] = x[mask]
+        
+        # Put dim_sum into array at first dim
+        replace_slices = [slice(None)]*x.ndim
+        replace_slices[axis] = [dims[0]]
+        x_ret[replace_slices] = dim_sum
+        
+        return x_ret
+            
+    # Merge and label reference lesions that are connected by predicted
+    # lesions.
+    num_g_merged = 0
+    for i, p_id in enumerate(p_id_list):
+        # Merge columns, as needed
+        g_id_intersected = g_id_list[intersection_matrix[i].nonzero()]
+        num_g_merged += len(g_id_intersected)-1
+        intersection_matrix = sum_dims(intersection_matrix,
+                                       axis=1,
+                                       dims=g_id_intersected-1)
+        g_id_list = np.delete(g_id_list, obj=g_id_intersected[1:]-1)
+        for g_id in g_id_intersected:
+            m[r==g_id] = g_id_intersected[0]
+    
+    # Match each predicted lesion to a single (merged) reference lesion.
+    max_val = np.max(intersection_matrix, axis=1)
+    max_indices = np.argmax(intersection_matrix, axis=1)
+    intersection_matrix[...] = 0
+    intersection_matrix[np.arange(len(p_id_list)), max_indices] = max_val
+    
+    # Merge and label predicted lesions that are connected by reference
+    # lesions.
+    num_p_merged = 0
     for j, g_id in enumerate(g_id_list):
-        intersection = intersection_matrix[:, j].sum()
-        p_j = np.sum([p==p_id for \
-                      p_id in p_id_list[intersection_matrix[:, j].nonzero()]])
-        union = np.count_nonzero(np.logical_or(p_j, r==g_id))
-        overlap_fraction = float(intersection)/union
-        if overlap_fraction > min_overlap:
-            d[p==p_j] = g_id
-            num_detected += 1
+        # Merge rows, as needed
+        p_id_intersected = p_id_list[intersection_matrix[:,j].nonzero()]
+        num_p_merged += len(p_id_intersected)-1
+        intersection_matrix = sum_dims(intersection_matrix,
+                                       axis=0,
+                                       dims=p_id_intersected-1)
+        p_id_list = np.delete(p_id_list, obj=p_id_intersected[1:]-1)
+        for p_id in p_id_intersected:
+            d[p==p_id] = p_id_intersected[0]
+    
+    # Trim away lesions deemed undetected.
+    num_detected = len(p_id_list)
+    for i, p_id in enumerate(p_id_list):
+        for j, g_id in enumerate(g_id_list):
+            intersection = intersection_matrix[i, j]
+            union = np.count_nonzero(np.logical_or(d==p_id, m==g_id))
+            overlap_fraction = float(intersection)/union
+            if overlap_fraction <= min_overlap:
+                d[d==p_id] = 0
+                num_detected -= 1
                 
-    return detected_mask, num_detected
+    return detected_mask, mod_reference_mask, \
+           num_detected, num_g_merged, num_p_merged
 
 
 def compute_tumor_burden(prediction_mask, reference_mask):
