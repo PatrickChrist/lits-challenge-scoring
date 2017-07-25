@@ -13,10 +13,19 @@ def dice(input1, input2):
 def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     """
     Produces a mask for predicted lesions and a mask for reference lesions,
-    with label IDs matching lesions together. A (set of) lesion(s) in the
-    reference is considered detected if a set of blobs in the prediction
-    overlaps the set of blobs in the reference by `min_overlap` (intersection
-    over union).
+    with label IDs matching lesions together.
+    
+    Given a prediction and a reference mask, output a modified version of
+    each where objects that overlap between the two mask share a label. This
+    requires merging labels in the reference mask that are spanned by a single
+    prediction and merging labels in the prediction mask that are spanned by
+    a single reference. In cases where a label can be merged, separately, with
+    more than one other label, a single merge option (label) is chosen to 
+    accord the greatest overlap between the reference and prediction objects.
+    
+    After merging and matching, objects in the reference are considered
+    detected if their respective predictions overlap them by more than
+    `min_overlap` (intersection over union).
     
     :param prediction_mask: numpy.array
     :param reference_mask: numpy.array
