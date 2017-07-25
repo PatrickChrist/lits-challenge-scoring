@@ -42,7 +42,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     mod_reference_mask = np.copy(reference_mask)
     num_detected = 0
     if not np.any(reference_mask):
-        return detected_mask, num_detected
+        return detected_mask, num_detected, 0, 0, 0
     
     if not min_overlap>0 and not min_overlap<=1:
         raise ValueError("min_overlap must be in [0, 1.]")
