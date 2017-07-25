@@ -30,7 +30,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     
     # Initialize
     detected_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
-    mod_reference_mask = np.zeros(prediction_mask.shape, dtype=np.uint8)
+    mod_reference_mask = np.copy(reference_mask)
     num_detected = 0
     if not np.any(reference_mask):
         return detected_mask, num_detected
@@ -102,16 +102,31 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     # lesions.
     num_g_merged = 0
     for i, p_id in enumerate(p_id_list):
-        # Merge columns, as needed
+        # Identify g_id intersected by p_id
         g_id_indices = intersection_matrix[i].nonzero()[0]
         g_id_intersected = g_id_list[g_id_indices]
-        num_g_merged += len(g_id_intersected)-1
+        
+        # Make sure g_id are matched to p_id deterministically regardless of 
+        # label order. Only merge in g_id to this p_id that overlap this p_id
+        # more than any other.
+        g_id_merge = []
+        g_id_merge_indices = []
+        for k, g_id in enumerate(g_id_intersected):
+            idx = g_id_indices[k]
+            if np.argmax(intersection_matrix[:, idx], axis=0)==i:
+                # This g_id has the largest overlap with this p_id: merge.
+                g_id_merge.append(g_id)
+                g_id_merge_indices.append(idx)
+                
+        # Merge. Update g_id_list, intersection matrix, mod_reference_mask.
+        # Merge columns in intersection_matrix.
+        g_id_list = np.delete(g_id_list, obj=g_id_merge_indices[1:])
+        for g_id in g_id_merge:
+            m[m==g_id] = g_id_merge[0]
         intersection_matrix = sum_dims(intersection_matrix,
                                        axis=1,
-                                       dims=g_id_indices)
-        g_id_list = np.delete(g_id_list, obj=g_id_indices[1:])
-        for g_id in g_id_intersected:
-            m[r==g_id] = g_id_intersected[0]
+                                       dims=g_id_merge_indices)
+        num_g_merged += max(len(g_id_merge)-1, 0)
     
     # Match each predicted lesion to a single (merged) reference lesion.
     max_val = np.max(intersection_matrix, axis=1)
