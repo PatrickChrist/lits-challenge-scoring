@@ -136,28 +136,34 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     
     # Merge and label predicted lesions that are connected by reference
     # lesions.
+    #
+    # Merge rows in intersection_matrix.
+    #
+    # Here, it's fine to merge all p_id that are connected by a g_id since
+    # each p_id has already been associated with only one g_id.
     num_p_merged = 0
     for j, g_id in enumerate(g_id_list):
-        # Merge rows, as needed
         p_id_indices = intersection_matrix[:,j].nonzero()[0]
         p_id_intersected = p_id_list[p_id_indices]
-        num_p_merged += len(p_id_intersected)-1
         intersection_matrix = sum_dims(intersection_matrix,
                                        axis=0,
                                        dims=p_id_indices)
         p_id_list = np.delete(p_id_list, obj=p_id_indices[1:])
         for p_id in p_id_intersected:
-            d[p==p_id] = p_id_intersected[0]
+            d[p==p_id] = g_id
+        num_p_merged += max(len(p_id_intersected)-1, 0)
     
     # Trim away lesions deemed undetected.
     num_detected = len(p_id_list)
     for i, p_id in enumerate(p_id_list):
         for j, g_id in enumerate(g_id_list):
             intersection = intersection_matrix[i, j]
+            if intersection==0:
+                continue
             union = np.count_nonzero(np.logical_or(d==p_id, m==g_id))
             overlap_fraction = float(intersection)/union
             if overlap_fraction <= min_overlap:
-                d[d==p_id] = 0
+                d[d==g_id] = 0      # Assuming one-to-one p_id <--> g_id
                 num_detected -= 1
                 
     return detected_mask, mod_reference_mask, \
