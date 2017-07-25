@@ -71,7 +71,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         specified axis, summing them together. Returns the reduced array.
         '''
         x = np.array(x)
-        if len(dims)==0:
+        if len(dims) <= 1:
             return x
         
         # Initialize output
@@ -82,7 +82,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         # Sum over dims on axis
         sum_slices = [slice(None)]*x.ndim
         sum_slices[axis] = dims
-        dim_sum = np.sum(x[sum_slices])
+        dim_sum = np.sum(x[sum_slices], axis=axis)
         
         # Remove all but first dim in dims
         mask = np.ones(x.shape, dtype=np.bool)
