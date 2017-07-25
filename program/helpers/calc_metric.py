@@ -103,12 +103,13 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     num_g_merged = 0
     for i, p_id in enumerate(p_id_list):
         # Merge columns, as needed
-        g_id_intersected = g_id_list[intersection_matrix[i].nonzero()]
+        g_id_indices = intersection_matrix[i].nonzero()[0]
+        g_id_intersected = g_id_list[g_id_indices]
         num_g_merged += len(g_id_intersected)-1
         intersection_matrix = sum_dims(intersection_matrix,
                                        axis=1,
-                                       dims=g_id_intersected-1)
-        g_id_list = np.delete(g_id_list, obj=g_id_intersected[1:]-1)
+                                       dims=g_id_indices)
+        g_id_list = np.delete(g_id_list, obj=g_id_indices[1:])
         for g_id in g_id_intersected:
             m[r==g_id] = g_id_intersected[0]
     
@@ -123,12 +124,13 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     num_p_merged = 0
     for j, g_id in enumerate(g_id_list):
         # Merge rows, as needed
-        p_id_intersected = p_id_list[intersection_matrix[:,j].nonzero()]
+        p_id_indices = intersection_matrix[:,j].nonzero()[0]
+        p_id_intersected = p_id_list[p_id_indices]
         num_p_merged += len(p_id_intersected)-1
         intersection_matrix = sum_dims(intersection_matrix,
                                        axis=0,
-                                       dims=p_id_intersected-1)
-        p_id_list = np.delete(p_id_list, obj=p_id_intersected[1:]-1)
+                                       dims=p_id_indices)
+        p_id_list = np.delete(p_id_list, obj=p_id_indices[1:])
         for p_id in p_id_intersected:
             d[p==p_id] = p_id_intersected[0]
     
