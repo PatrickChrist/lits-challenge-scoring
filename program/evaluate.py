@@ -37,13 +37,14 @@ if not os.path.exists(output_dir):
 # meaningless when any one of the masks is empty. Assign maximum (infinite)
 # penalty. The average score for these metrics, over all objects, will thus
 # also not be finite as it also loses meaning.
+LARGE = 9001
 segmentation_metrics = {'dice': 0,
                         'jaccard': 0,
                         'voe': 1,
-                        'rvd': np.inf,
-                        'assd': np.inf,
-                        'rmsd': np.inf,
-                        'msd': np.inf}
+                        'rvd': LARGE,
+                        'assd': LARGE,
+                        'rmsd': LARGE,
+                        'msd': LARGE}
 
 # Initialize results dictionaries
 lesion_detection_stats = {0:   {'TP': 0, 'FP': 0, 'FN': 0},
