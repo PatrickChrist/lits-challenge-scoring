@@ -58,10 +58,10 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     g_id_list = np.unique(reference_mask)[1:]
     
     # To reduce computation time, get views into reduced size masks.
-    reduced_prediction_mask = prediction_mask.copy()
+    reduced_prediction_mask = rpm = prediction_mask.copy()
     for p_id in np.unique(prediction_mask):
         if p_id not in p_id_list:
-            reduced_prediction_mask[p_id] = 0
+            reduced_prediction_mask[rpm==p_id] = 0
     target_mask = np.logical_or(reference_mask, reduced_prediction_mask)
     bounding_box = ndimage.find_objects(target_mask)[0]
     r = reference_mask[bounding_box]
