@@ -155,11 +155,11 @@ for reference_volume_fn in reference_volume_list:
         print("No liver label provided, skipping liver score evaluation")
         
     # Compute per-case (per patient volume) dice.
-    if np.any(pred_mask_lesion) and np.any(true_mask_lesion):
+    if not np.any(pred_mask_lesion) and not np.any(true_mask_lesion):
+        dice_per_case['lesion'].append(1.)
+    else:
         dice_per_case['lesion'].append(dice(pred_mask_lesion,
                                             true_mask_lesion))
-    else:
-        dice_per_case['lesion'].append(1.)
     if liver_prediction_exists:
         dice_per_case['liver'].append(dice(pred_mask_liver,
                                            true_mask_liver))
