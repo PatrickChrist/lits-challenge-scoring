@@ -206,8 +206,8 @@ for overlap in [0, 0.5]:
     _det[overlap] = {'p': precision, 'r': recall}
 lesion_detection_metrics = {'precision': _det[0.5]['p'],
                             'recall': _det[0.5]['r'],
-                            'lesion_precision_greater_zero': _det[0]['p'],
-                            'lesion_recall_greater_zero': _det[0]['r']}
+                            'precision_greater_zero': _det[0]['p'],
+                            'recall_greater_zero': _det[0]['r']}
 
 # Compute lesion segmentation metrics.
 lesion_segmentation_metrics = {}
