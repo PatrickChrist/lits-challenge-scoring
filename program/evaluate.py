@@ -11,7 +11,8 @@ import gc
 from helpers.calc_metric import (dice,
                                  detect_lesions,
                                  compute_segmentation_scores,
-                                 compute_tumor_burden)
+                                 compute_tumor_burden,
+                                 LARGE)
 from helpers.utils import time_elapsed
 
 
@@ -37,7 +38,6 @@ if not os.path.exists(output_dir):
 # meaningless when any one of the masks is empty. Assign maximum (infinite)
 # penalty. The average score for these metrics, over all objects, will thus
 # also not be finite as it also loses meaning.
-LARGE = 9001
 segmentation_metrics = {'dice': 0,
                         'jaccard': 0,
                         'voe': 1,

@@ -6,6 +6,9 @@ import time
 from .surface import Surface
 
 
+LARGE = 9001
+
+
 def dice(input1, input2):
     return metric.dc(input1, input2)
 
@@ -193,7 +196,7 @@ def compute_tumor_burden(prediction_mask, reference_mask):
         num_les_pix=np.count_nonzero(vol==2)
         if num_liv_pix:
             return num_les_pix/float(num_liv_pix)
-        return np.inf
+        return LARGE
     tumor_burden_r = calc_tumor_burden(reference_mask)
     tumor_burden_p = calc_tumor_burden(prediction_mask)
 
@@ -262,9 +265,9 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
             # maximum (infinite) penalty. The average score for these metrics,
             # over all objects, will thus also not be finite as it also loses 
             # meaning.
-            scores['rvd'].append(np.inf)
-            scores['assd'].append(np.inf)
-            scores['rmsd'].append(np.inf)
-            scores['msd'].append(np.inf)
+            scores['rvd'].append(LARGE)
+            scores['assd'].append(LARGE)
+            scores['rmsd'].append(LARGE)
+            scores['msd'].append(LARGE)
               
     return scores
