@@ -102,20 +102,15 @@ for reference_volume_fn in reference_volume_list:
     # Identify detected lesions.
     # Retain detected_mask_lesion for overlap > 0.5
     for overlap in [0, 0.5]:
-        detected_mask_lesion, mod_ref_mask, \
-        num_detected, num_g_merged, num_p_merged = detect_lesions( \
+        detected_mask_lesion, mod_ref_mask, num_detected = detect_lesions( \
                                               prediction_mask=pred_mask_lesion,
                                               reference_mask=true_mask_lesion,
                                               min_overlap=overlap)
         
-        # Adjust lesion count to account for merged lesions.
-        num_predicted_m = num_predicted-num_p_merged
-        num_reference_m = num_reference-num_g_merged
-    
         # Count true/false positive and false negative detections.
         lesion_detection_stats[overlap]['TP']+=num_detected
-        lesion_detection_stats[overlap]['FP']+=num_predicted_m-num_detected
-        lesion_detection_stats[overlap]['FN']+=num_reference_m-num_detected
+        lesion_detection_stats[overlap]['FP']+=num_predicted-num_detected
+        lesion_detection_stats[overlap]['FN']+=num_reference-num_detected
     print("Done identifying detected lesions ({:.2f} seconds)".format(t()))
     
     # Compute segmentation scores for DETECTED lesions.

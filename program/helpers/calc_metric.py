@@ -35,9 +35,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     :param min_overlap: float in range [0, 1.]
     :return: prediction mask (int),
              reference mask (int),
-             num_detected,
-             reduction in number of reference lesions due to merging,
-             reduction in number of predicted lesions due to merging
+             num_detected
     """
     
     # Initialize
@@ -64,8 +62,8 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     # To reduce computation time, get views into reduced size masks.
     reduced_prediction_mask = rpm = prediction_mask.copy()
     for p_id in np.unique(prediction_mask):
-        if p_id not in p_id_list:
-            reduced_prediction_mask[rpm==p_id] = 0
+        if p_id not in p_id_list and p_id!=0:
+            reduced_prediction_mask[(rpm==p_id).nonzero()] = 0
     target_mask = np.logical_or(reference_mask, reduced_prediction_mask)
     bounding_box = ndimage.find_objects(target_mask)[0]
     r = reference_mask[bounding_box]
@@ -116,15 +114,14 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
             
     # Merge and label reference lesions that are connected by predicted
     # lesions.
-    num_g_merged = 0
+    g_merge_count = dict([(g_id, 1) for g_id in g_id_list])
     for i, p_id in enumerate(p_id_list):
         # Identify g_id intersected by p_id
         g_id_indices = intersection_matrix[i].nonzero()[0]
         g_id_intersected = g_id_list[g_id_indices]
         
         # Make sure g_id are matched to p_id deterministically regardless of 
-        # label order. Only merge in g_id to this p_id that overlap this p_id
-        # more than any other.
+        # label order. Only merge g_id to the one that most overlaps the p_id.
         g_id_merge = []
         g_id_merge_indices = []
         for k, g_id in enumerate(g_id_intersected):
@@ -134,6 +131,10 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
                 g_id_merge.append(g_id)
                 g_id_merge_indices.append(idx)
                 
+        # Update merge count
+        for g_id in g_id_merge:
+            g_merge_count[g_id] = len(g_id_merge)
+                
         # Merge. Update g_id_list, intersection matrix, mod_reference_mask.
         # Merge columns in intersection_matrix.
         g_id_list = np.delete(g_id_list, obj=g_id_merge_indices[1:])
@@ -142,7 +143,6 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         intersection_matrix = sum_dims(intersection_matrix,
                                        axis=1,
                                        dims=g_id_merge_indices)
-        num_g_merged += max(len(g_id_merge)-1, 0)
     
     # Match each predicted lesion to a single (merged) reference lesion.
     max_val = np.max(intersection_matrix, axis=1)
@@ -157,7 +157,6 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     #
     # Here, it's fine to merge all p_id that are connected by a g_id since
     # each p_id has already been associated with only one g_id.
-    num_p_merged = 0
     for j, g_id in enumerate(g_id_list):
         p_id_indices = intersection_matrix[:,j].nonzero()[0]
         p_id_intersected = p_id_list[p_id_indices]
@@ -167,8 +166,7 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         p_id_list = np.delete(p_id_list, obj=p_id_indices[1:])
         for p_id in p_id_intersected:
             d[p==p_id] = g_id
-        num_p_merged += max(len(p_id_intersected)-1, 0)
-    
+            
     # Trim away lesions deemed undetected.
     num_detected = len(p_id_list)
     for i, p_id in enumerate(p_id_list):
@@ -180,10 +178,9 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
             overlap_fraction = float(intersection)/union
             if overlap_fraction <= min_overlap:
                 d[d==g_id] = 0      # Assuming one-to-one p_id <--> g_id
-                num_detected -= 1
+                num_detected -= g_merge_count[g_id]
                 
-    return detected_mask, mod_reference_mask, \
-           num_detected, num_g_merged, num_p_merged
+    return detected_mask, mod_reference_mask, num_detected
 
 
 def compute_tumor_burden(prediction_mask, reference_mask):
