@@ -79,9 +79,9 @@ class Surface(object):
         # But there might be some later metric implementation that requires the
         # points and then it would be good to have them. What is better?
         mask_pts = mask_edge_image.nonzero()
-        mask_edge_points = zip(mask_pts[0], mask_pts[1], mask_pts[2])
+        mask_edge_points = list(zip(mask_pts[0], mask_pts[1], mask_pts[2]))
         reference_pts = reference_edge_image.nonzero()
-        reference_edge_points = zip(reference_pts[0], reference_pts[1], reference_pts[2])
+        reference_edge_points = list(zip(reference_pts[0], reference_pts[1], reference_pts[2]))
 
         # check if there is actually an object present
         if 0 >= len(mask_edge_points):
