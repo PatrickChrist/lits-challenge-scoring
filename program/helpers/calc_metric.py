@@ -195,11 +195,12 @@ def compute_tumor_burden(prediction_mask, reference_mask):
     def calc_tumor_burden(vol):
         num_liv_pix=np.count_nonzero(vol>=1)
         num_les_pix=np.count_nonzero(vol==2)
-        if num_liv_pix:
-            return num_les_pix/float(num_liv_pix)
-        return LARGE
+        return num_les_pix/float(num_liv_pix)
     tumor_burden_r = calc_tumor_burden(reference_mask)
-    tumor_burden_p = calc_tumor_burden(prediction_mask)
+    if np.count_nonzero(prediction_mask==1):
+        tumor_burden_p = calc_tumor_burden(prediction_mask)
+    else:
+        tumor_burden_p = LARGE
 
     tumor_burden_diff = tumor_burden_r - tumor_burden_p
     return tumor_burden_diff
@@ -263,9 +264,8 @@ def compute_segmentation_scores(prediction_mask, reference_mask,
             
             # Surface distance (and volume difference) metrics between the two
             # masks are meaningless when any one of the masks is empty. Assign 
-            # maximum (infinite) penalty. The average score for these metrics,
-            # over all objects, will thus also not be finite as it also loses 
-            # meaning.
+            # maximum penalty. The average score for these metrics, over all 
+            # objects, will thus also not be finite as it also loses meaning.
             scores['rvd'].append(LARGE)
             scores['assd'].append(LARGE)
             scores['rmsd'].append(LARGE)
