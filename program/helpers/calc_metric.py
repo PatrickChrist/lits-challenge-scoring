@@ -54,8 +54,12 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
     # 
     # To reduce computation time, check only those lesions in the prediction 
     # that have any overlap with the ground truth.
-    p_id_list = np.unique(prediction_mask[reference_mask.nonzero()])[1:]
-    g_id_list = np.unique(reference_mask)[1:]
+    p_id_list = np.unique(prediction_mask[reference_mask.nonzero()])
+    if p_id_list[0]==0:
+        p_id_list = p_id_list[1:]
+    g_id_list = np.unique(reference_mask)
+    if g_id_list[0]==0:
+        g_id_list = g_id_list[1:]
     
     # To reduce computation time, get views into reduced size masks.
     reduced_prediction_mask = rpm = prediction_mask.copy()
