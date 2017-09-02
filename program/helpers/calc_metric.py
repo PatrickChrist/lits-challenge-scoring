@@ -121,7 +121,8 @@ def detect_lesions(prediction_mask, reference_mask, min_overlap=0.5):
         g_id_intersected = g_id_list[g_id_indices]
         
         # Make sure g_id are matched to p_id deterministically regardless of 
-        # label order. Only merge g_id to the one that most overlaps the p_id.
+        # label order. Only merge those g_id which overlap this p_id more than
+        # others.
         g_id_merge = []
         g_id_merge_indices = []
         for k, g_id in enumerate(g_id_intersected):
