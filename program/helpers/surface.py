@@ -231,7 +231,7 @@ class Surface(object):
                 reference edge points.
         """
         # Note: see note for @see get_reference_mask_nn
-        if None == self.__mask_reference_nn:
+        if self.__mask_reference_nn is None:
             tree = scipy.spatial.cKDTree(self.get_mask_edge_points())
             self.__mask_reference_nn, _ = tree.query(self.get_reference_edge_points())
         return self.__mask_reference_nn
@@ -250,7 +250,7 @@ class Surface(object):
         # Note: KDTree is faster than scipy.spatial.distance.cdist when the number of
         # voxels exceeds 10.000 (computationally tested). The maximum complexity is
         # O(D*N^2) vs. O(D*N*log(N), where D=3 and N=number of voxels
-        if None == self.__reference_mask_nn:
+        if self.__reference_mask_nn is None:
             tree = scipy.spatial.cKDTree(self.get_reference_edge_points())
             self.__reference_mask_nn, _ = tree.query(self.get_mask_edge_points())
         return self.__reference_mask_nn
