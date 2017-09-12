@@ -212,7 +212,9 @@ if len(lesion_segmentation_scores)==0:
     # Nothing detected - set default values.
     lesion_segmentation_metrics.update(segmentation_metrics)
 lesion_segmentation_metrics['dice_per_case'] = np.mean(dice_per_case['lesion'])
-dice_global = 2.*dice_global_x['lesion']['I']/dice_global_x['lesion']['S']
+dice_global = 0
+if dice_global_x['lesion']['S'] > 0:
+    dice_global = 2.*dice_global_x['lesion']['I']/dice_global_x['lesion']['S']
 lesion_segmentation_metrics['dice_global'] = dice_global
     
 # Compute liver segmentation metrics.
